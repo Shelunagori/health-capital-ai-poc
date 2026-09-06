@@ -8,6 +8,12 @@ export const metadata = {
   description: 'Check whether your health capital can pay for a healthcare expense.',
 };
 
+/** Without this the page renders at desktop width on a phone and every layout rule is moot. */
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
   return (
     <html lang="en">
