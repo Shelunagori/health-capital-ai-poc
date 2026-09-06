@@ -139,7 +139,24 @@ Manual (per demo release): screenshots, favicon and image assets, rendered UI, d
 names on the hosting platform, any other visual artifact. The text guard does not inspect image pixels and
 is never treated as proof that image assets contain no branding.
 
+## The AI boundary
+
+Only branded, minimized types cross it. The provider receives no name, email, date of birth,
+address, employee identifier, database identifier, opaque reference, ledger history or care history,
+and no identifier for the member at all.
+
+Raw member text passes through a sanitizer first, and only the first stage ever sees it. The
+explanation stage is given the decision and nothing else, so there is no path from what a member
+types to what they are told.
+
+What survives sanitizing is the member's healthcare intent, which is itself sensitive. That
+limitation is stated in full in [the AI architecture](ai-architecture.md), and it is why this proof
+of concept relies on synthetic data.
+
 ## Threat model
 
-`docs/threat-model.md` arrives in M6 and lists production items deliberately not built here (hash-chained
-audit, SIEM export, WORM storage, field-level encryption, retention workflows, among others).
+[The threat model](threat-model.md) sets out what is defended, what each control actually does, and
+what is deliberately not built: token revocation, multi-factor authentication, application-level
+field encryption, hash-chained audit, write-once storage, retention workflows, alerting, and a human
+review workflow, among others. Each is listed with what it would address, because leaving it out was
+a decision rather than an oversight.
