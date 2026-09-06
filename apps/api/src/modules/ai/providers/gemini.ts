@@ -1,0 +1,112 @@
+import { GoogleGenAI, type FunctionDeclaration } from '@google/genai';
+import { AiUnavailableError, withTimeout } from '../errors.js';
+import type {
+  AIProvider,
+  ModelToolCall,
+  StructuredRequest,
+  ToolTurnRequest,
+  ToolTurnResult,
+} from '../types.js';
+
+/**
+ * The real provider.
+ *
+ * The key is read from the server environment and never leaves it. Requests and responses are never
+ * logged: a Stage A request carries the member's own words, and a log line is exactly the kind of
+ * place that text should not end up. Failures become `AiUnavailableError`, which carries only the
+ * provider name and the kind of failure, so a provider message cannot smuggle a payload into a log.
+ */
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+
+export class GeminiProvider implements AIProvider {
+  readonly name = 'gemini';
+  readonly available = true;
+  private readonly client: GoogleGenAI;
+
+  constructor(
+    apiKey: string,
+    readonly model: string = DEFAULT_GEMINI_MODEL,
+  ) {
+    this.client = new GoogleGenAI({ apiKey });
+  }
+
+  async generateWithTools(request: ToolTurnRequest): Promise<ToolTurnResult> {
+    const functionDeclarations: FunctionDeclaration[] = request.tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      parametersJsonSchema: tool.parameters,
+    }));
+
+    // The conversation: the member's sanitized words, then each tool call and its result.
+    const contents: Record<string, unknown>[] = [
+      { role: 'user', parts: [{ text: request.query.text }] },
+    ];
+    for (const exchange of request.exchanges) {
+      contents.push({
+        role: 'model',
+        parts: [{ functionCall: { name: exchange.call.name, args: exchange.call.args } }],
+      });
+      contents.push({
+        role: 'user',
+        parts: [
+          { functionResponse: { name: exchange.call.name, response: { result: exchange.result } } },
+        ],
+      });
+    }
+
+    const response = await withTimeout(
+      this.client.models.generateContent({
+        model: this.model,
+        contents: contents,
+        config: {
+          systemInstruction: request.systemInstruction,
+          tools: [{ functionDeclarations }],
+          temperature: 0,
+        },
+      }),
+      this.name,
+    ).catch((err: unknown) => {
+      if (err instanceof AiUnavailableError) throw err;
+      throw new AiUnavailableError(this.name, 'CALL_FAILED');
+    });
+
+    const toolCalls: ModelToolCall[] = (response.functionCalls ?? []).map((call) => ({
+      name: call.name ?? '',
+      args: call.args,
+    }));
+
+    return { text: response.text ?? null, toolCalls };
+  }
+
+  async generateStructured(request: StructuredRequest): Promise<unknown> {
+    const response = await withTimeout(
+      this.client.models.generateContent({
+        model: this.model,
+        // The decision only. The member's words never reach this stage.
+        contents: [{ role: 'user', parts: [{ text: JSON.stringify(request.context) }] }] as never,
+        config: {
+          systemInstruction: request.systemInstruction,
+          responseMimeType: 'application/json',
+          responseJsonSchema: request.responseSchema,
+          temperature: 0,
+        },
+      }),
+      this.name,
+    ).catch((err: unknown) => {
+      if (err instanceof AiUnavailableError) throw err;
+      throw new AiUnavailableError(this.name, 'CALL_FAILED');
+    });
+
+    const text = response.text;
+    if (text === undefined || text === null || text.trim() === '') {
+      throw new AiUnavailableError(this.name, 'BAD_RESPONSE');
+    }
+
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      // The unparseable text is deliberately not included anywhere.
+      throw new AiUnavailableError(this.name, 'BAD_RESPONSE');
+    }
+  }
+}
