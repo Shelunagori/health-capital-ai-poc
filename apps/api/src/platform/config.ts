@@ -32,10 +32,21 @@ const RawEnvSchema = z.object({
   CORS_ALLOWED_ORIGINS: z.string().optional(),
   PUBLIC_WEB_ORIGIN: z.string().url().optional(),
   PUBLIC_API_URL: z.string().url().optional(),
-  DATABASE_URL: z.string().optional(),
-  JWT_SECRET: z.string().optional(),
+  // Required since the API gained authentication: it cannot serve a request without either.
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  JWT_SECRET: z
+    .string()
+    .refine(
+      (value) => Buffer.byteLength(value, 'utf8') >= 32,
+      'JWT_SECRET must be at least 32 bytes',
+    ),
   GEMINI_API_KEY: z.string().optional(),
   BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).max(1_048_576).default(65_536),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(60_000),
+  /** Ceiling for any single client address across all routes. */
+  RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).default(300),
+  /** Login attempts per window for one client address and submitted address. */
+  RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).default(5),
 });
 
 export interface AppConfig {
@@ -46,10 +57,13 @@ export interface AppConfig {
   readonly corsAllowedOrigins: readonly string[];
   readonly publicWebOrigin: string | undefined;
   readonly publicApiUrl: string | undefined;
-  readonly databaseUrl: string | undefined;
-  readonly jwtSecret: string | undefined;
+  readonly databaseUrl: string;
+  readonly jwtSecret: string;
   readonly geminiApiKey: string | undefined;
   readonly bodyLimitBytes: number;
+  readonly rateLimitWindowMs: number;
+  readonly rateLimitGlobalMax: number;
+  readonly rateLimitLoginMax: number;
 }
 
 export class ConfigError extends Error {
@@ -110,17 +124,13 @@ const demoChecks: ReadonlyArray<(c: AppConfig) => string | null> = [
   (c) =>
     isHttps(c.publicApiUrl) ? null : 'PUBLIC_API_URL must be set and use https:// in demo mode',
   (c) =>
-    c.databaseUrl !== undefined && databaseUrlRequiresTls(c.databaseUrl)
+    databaseUrlRequiresTls(c.databaseUrl)
       ? null
       : 'DATABASE_URL must be set and require TLS (sslmode=require or stricter) in demo mode',
   (c) =>
     looksLikePlaceholder(c.databaseUrl)
       ? 'DATABASE_URL must not contain a placeholder value'
       : null,
-  (c) =>
-    c.jwtSecret !== undefined && Buffer.byteLength(c.jwtSecret, 'utf8') >= 32
-      ? null
-      : 'JWT_SECRET must be set and be at least 32 bytes in demo mode',
   (c) => (looksLikePlaceholder(c.jwtSecret) ? 'JWT_SECRET must not be a placeholder value' : null),
   (c) =>
     looksLikePlaceholder(c.geminiApiKey) ? 'GEMINI_API_KEY must not be a placeholder value' : null,
@@ -134,12 +144,9 @@ const demoChecks: ReadonlyArray<(c: AppConfig) => string | null> = [
       : 'CORS_ALLOWED_ORIGINS must contain only https:// origins in demo mode',
 ];
 
-const alwaysChecks: ReadonlyArray<(c: AppConfig) => string | null> = [
-  (c) =>
-    c.jwtSecret !== undefined && Buffer.byteLength(c.jwtSecret, 'utf8') < 32
-      ? 'JWT_SECRET, when set, must be at least 32 bytes'
-      : null,
-];
+// Length and presence are enforced by the schema above, so nothing remains that applies to every
+// environment. Kept as an explicit empty list so adding one has an obvious home.
+const alwaysChecks: ReadonlyArray<(c: AppConfig) => string | null> = [];
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const secrets = secretValuesFrom(env);
@@ -162,6 +169,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jwtSecret: raw.JWT_SECRET,
     geminiApiKey: raw.GEMINI_API_KEY,
     bodyLimitBytes: raw.BODY_LIMIT_BYTES,
+    rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
+    rateLimitGlobalMax: raw.RATE_LIMIT_GLOBAL_MAX,
+    rateLimitLoginMax: raw.RATE_LIMIT_LOGIN_MAX,
   };
 
   const checks = config.appEnv === 'demo' ? [...alwaysChecks, ...demoChecks] : alwaysChecks;

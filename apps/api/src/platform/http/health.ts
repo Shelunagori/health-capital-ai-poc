@@ -8,7 +8,7 @@ export const API_VERSION = '0.1.0';
  * Readiness (`/ready`, database + migrations) arrives with the data layer milestone.
  */
 export function registerHealth(app: FastifyInstance, config: AppConfig): void {
-  app.get('/health', () => ({
+  app.get('/health', { config: { public: true } }, () => ({
     status: 'ok' as const,
     appEnv: config.appEnv,
     version: API_VERSION,

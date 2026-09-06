@@ -1,13 +1,17 @@
 import { Writable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { randomUUID } from 'node:crypto';
 import { buildApp } from './app.js';
 import { loadConfig } from './platform/config.js';
 import { createLogger } from './platform/logger.js';
+import { createDb, type Db } from './platform/db.js';
 import { AppError } from './platform/errors.js';
 
 const ALLOWED_ORIGIN = 'http://localhost:3000';
-const SECRET_HEADER_VALUE = 'Bearer super-secret-token-value-9f8e7d';
+const SECRET_HEADER_VALUE = `Bearer ${randomUUID()}`;
+// A client is constructed but never queried here, so these platform tests stay offline.
+const OFFLINE_DATABASE_URL = 'postgresql://unused:unused@127.0.0.1:1/unused';
 
 /** Captures every log line so tests can assert what never appears in logs. */
 function captureLogs(): { sink: Writable; lines: () => string[] } {
@@ -23,6 +27,7 @@ function captureLogs(): { sink: Writable; lines: () => string[] } {
 
 describe('platform HTTP baseline', () => {
   let app: FastifyInstance;
+  let db: Db;
   let logs: ReturnType<typeof captureLogs>;
 
   beforeEach(async () => {
@@ -31,16 +36,21 @@ describe('platform HTTP baseline', () => {
       APP_ENV: 'test',
       CORS_ALLOWED_ORIGINS: ALLOWED_ORIGIN,
       BODY_LIMIT_BYTES: '2048',
+      DATABASE_URL: OFFLINE_DATABASE_URL,
+      JWT_SECRET: `${randomUUID()}${randomUUID()}`,
     });
     const logger = createLogger({ level: 'info', destination: logs.sink });
-    app = await buildApp({ config, logger });
+    db = createDb({ databaseUrl: config.databaseUrl });
+    app = await buildApp({ config, logger, db });
 
-    // Test-only routes to exercise the body limit and error handler.
-    app.post('/__test/echo', (request) => ({ received: request.body }));
-    app.get('/__test/boom', () => {
+    // Test-only routes to exercise the body limit and error handler. They opt out of
+    // authentication so these tests stay focused on the HTTP baseline.
+    const open = { config: { public: true } } as const;
+    app.post('/__test/echo', open, (request) => ({ received: request.body }));
+    app.get('/__test/boom', open, () => {
       throw new Error('database password is hunter2 at 10.0.0.5');
     });
-    app.get('/__test/forbidden', () => {
+    app.get('/__test/forbidden', open, () => {
       throw new AppError('FORBIDDEN', 'You may not view this resource');
     });
     await app.ready();
@@ -48,6 +58,7 @@ describe('platform HTTP baseline', () => {
 
   afterEach(async () => {
     await app.close();
+    await db.$disconnect();
   });
 
   it('serves liveness without touching dependencies', async () => {

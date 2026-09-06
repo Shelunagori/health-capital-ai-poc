@@ -12,6 +12,12 @@ import {
 // scrubbing assertions below are stronger for using a value that cannot appear anywhere by accident.
 const SAFE_SECRET = `${randomUUID()}${randomUUID()}`;
 
+/** The two settings the API cannot start without, in a form that is valid outside demo mode. */
+const baseEnv = {
+  DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/health_capital',
+  JWT_SECRET: SAFE_SECRET,
+};
+
 const demoEnv = (overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv => ({
   APP_ENV: 'demo',
   PUBLIC_WEB_ORIGIN: 'https://demo.example.test',
@@ -35,23 +41,30 @@ const problemsOf = (env: NodeJS.ProcessEnv): string[] => {
 describe('loadConfig in local mode', () => {
   it('accepts localhost HTTP origins and a non-TLS database (synthetic local data only)', () => {
     const config = loadConfig({
+      ...baseEnv,
       APP_ENV: 'local',
       CORS_ALLOWED_ORIGINS: 'http://localhost:3000',
-      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/health_capital',
     });
     expect(config.appEnv).toBe('local');
     expect(config.corsAllowedOrigins).toEqual(['http://localhost:3000']);
     expect(config.bodyLimitBytes).toBe(65_536);
+    expect(config.rateLimitLoginMax).toBe(5);
   });
 
   it('defaults APP_ENV to local', () => {
-    expect(loadConfig({}).appEnv).toBe('local');
+    expect(loadConfig(baseEnv).appEnv).toBe('local');
   });
 
-  it('still rejects a short JWT secret when one is provided', () => {
-    expect(problemsOf({ APP_ENV: 'local', JWT_SECRET: 'short' })).toEqual([
-      'JWT_SECRET, when set, must be at least 32 bytes',
-    ]);
+  it('requires a database URL and a JWT secret in every environment', () => {
+    const problems = problemsOf({ APP_ENV: 'local' });
+    expect(problems.join('\n')).toContain('DATABASE_URL');
+    expect(problems.join('\n')).toContain('JWT_SECRET');
+  });
+
+  it('rejects a short JWT secret', () => {
+    expect(problemsOf({ ...baseEnv, APP_ENV: 'local', JWT_SECRET: 'short' }).join('\n')).toContain(
+      'JWT_SECRET must be at least 32 bytes',
+    );
   });
 });
 
@@ -90,11 +103,9 @@ describe('loadConfig in demo mode fails closed', () => {
   });
 
   it('rejects a missing, short or placeholder JWT secret', () => {
-    expect(problemsOf(demoEnv({ JWT_SECRET: undefined }))).toContain(
-      'JWT_SECRET must be set and be at least 32 bytes in demo mode',
-    );
-    expect(problemsOf(demoEnv({ JWT_SECRET: 'tooshort' }))).toContain(
-      'JWT_SECRET, when set, must be at least 32 bytes',
+    expect(problemsOf(demoEnv({ JWT_SECRET: undefined })).join('\n')).toContain('JWT_SECRET');
+    expect(problemsOf(demoEnv({ JWT_SECRET: 'tooshort' })).join('\n')).toContain(
+      'JWT_SECRET must be at least 32 bytes',
     );
     expect(
       problemsOf(demoEnv({ JWT_SECRET: 'change-me-generate-a-real-secret-of-at-least-32-bytes' })),
@@ -125,8 +136,8 @@ describe('loadConfig in demo mode fails closed', () => {
   });
 
   it('reports every problem at once', () => {
-    const problems = problemsOf({ APP_ENV: 'demo' });
-    expect(problems.length).toBeGreaterThanOrEqual(5);
+    const problems = problemsOf({ ...baseEnv, APP_ENV: 'demo' });
+    expect(problems.length).toBeGreaterThanOrEqual(4);
   });
 });
 
@@ -191,6 +202,9 @@ describe('configuration errors never echo secret values', () => {
     const surfaces = surfacesOf({
       APP_ENV: 'demo',
       PORT: 'not-a-number',
+      PUBLIC_WEB_ORIGIN: 'https://demo.example.test',
+      PUBLIC_API_URL: 'https://api.demo.example.test',
+      CORS_ALLOWED_ORIGINS: 'https://demo.example.test',
       DATABASE_URL: `postgresql://appuser:${DB_PASSWORD}@db.internal:5432/app?sslmode=require`,
       JWT_SECRET: JWT_VALUE,
     });

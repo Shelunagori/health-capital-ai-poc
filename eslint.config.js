@@ -45,13 +45,34 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['../*/*', '!../*/index', '!../*/index.js'],
+              // A sibling module is reachable only through its index: `../<module>/index.js`.
+              // Module names are listed explicitly because a wildcard segment also matches `..`,
+              // which would wrongly catch `../../platform/...`. Every module may import platform
+              // directly: it is infrastructure, not a domain module. Add new modules here.
+              group: [
+                '../ai/*',
+                '!../ai/index.js',
+                '../audit/*',
+                '!../audit/index.js',
+                '../auth/*',
+                '!../auth/index.js',
+                '../authorization/*',
+                '!../authorization/index.js',
+                '../benefits/*',
+                '!../benefits/index.js',
+                '../classification/*',
+                '!../classification/index.js',
+                '../eligibility/*',
+                '!../eligibility/index.js',
+                '../guidance/*',
+                '!../guidance/index.js',
+                '../integrations/*',
+                '!../integrations/index.js',
+                '../members/*',
+                '!../members/index.js',
+              ],
               message:
-                'Import other modules only through their index (e.g. `../audit/index.js`). See docs/architecture.md.',
-            },
-            {
-              group: ['**/modules/*/*', '!**/modules/*/index', '!**/modules/*/index.js'],
-              message: 'Import other modules only through their index.',
+                'Import a sibling module only through its index (e.g. `../audit/index.js`). See docs/architecture.md.',
             },
           ],
         },

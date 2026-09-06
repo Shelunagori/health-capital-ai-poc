@@ -25,10 +25,13 @@
   "dependencies": {
     "@fastify/cors": "^11.3.0",
     "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@health-capital/contracts": "workspace:*",
     "@node-rs/argon2": "2.2.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "fastify": "^5.12.3",
+    "jose": "^6.2.12",
     "pino": "^9.14.0",
     "zod": "^4.5.4"
   },

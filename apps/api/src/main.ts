@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { createDb } from './platform/db.js';
 import { ConfigError, loadConfig } from './platform/config.js';
 import { SAFE_LOG_FIELD_NAMES, createLogger } from './platform/logger.js';
 import { classificationRedactPaths } from './modules/classification/index.js';
@@ -21,11 +22,13 @@ async function main(): Promise<void> {
     // Second layer only. The primary control is the typed SafeLogFields shape.
     extraRedactPaths: classificationRedactPaths(SAFE_LOG_FIELD_NAMES),
   });
-  const app = await buildApp({ config, logger });
+  const db = createDb({ databaseUrl: config.databaseUrl });
+  const app = await buildApp({ config, logger, db });
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ action: 'shutdown', code: signal }, 'shutting down');
     await app.close();
+    await db.$disconnect();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown('SIGINT'));

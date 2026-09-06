@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export * from './auth.js';
+
 /**
  * Shared request/response contracts between the API and the web client.
  * Only DTO schemas belong here; no business logic.
