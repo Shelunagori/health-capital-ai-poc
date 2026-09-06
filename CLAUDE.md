@@ -70,15 +70,18 @@ incl. brand guard and gitleaks; manual demo deploy in M7). Docker Compose for lo
 
 ## Commands
 
-Available now (M0):
-pnpm install · docker compose up -d · pnpm dev (api :3001) · pnpm test · pnpm test:unit · pnpm lint · pnpm format ·
-pnpm typecheck · pnpm build · pnpm brand-guard [--commits <range>]
+Available now (M0-M1):
+pnpm install · docker compose up -d · pnpm db:migrate · pnpm db:deploy · pnpm db:seed · pnpm db:reset · pnpm db:generate ·
+pnpm dev (api :3001) · pnpm test (unit) · pnpm test:integration (needs a migrated and seeded PostgreSQL) ·
+pnpm lint · pnpm format · pnpm typecheck · pnpm build · pnpm brand-guard [--commits <range>]
 pnpm --filter @health-capital/api test src/platform/config.test.ts (single file)
-Added by later milestones: pnpm db:migrate · pnpm db:seed · pnpm test:integration · pnpm test:security · pnpm test:privacy ·
-pnpm test:ai-pipeline · GEMINI_API_KEY=... pnpm test:ai-live · pnpm demo:reseed
+Added by later milestones: pnpm test:security · pnpm test:privacy · pnpm test:ai-pipeline ·
+GEMINI_API_KEY=... pnpm test:ai-live · pnpm demo:reseed
 
-Local setup: copy `.env.example` to `.env`; `APP_ENV=local` needs no secrets to boot. The brand guard reads terms from
-`BRAND_GUARD_TERMS` or a gitignored `.brand-guard-terms` file and skips with a warning locally when neither exists.
+Local setup: copy `.env.example` to `.env`; `APP_ENV=local` needs no secrets to boot. `pnpm db:seed` requires
+`SEED_USER_PASSWORD` (at least 12 characters) and stores only its Argon2id hash. The generated Prisma client lives in
+`apps/api/src/generated/` and is gitignored; run `pnpm db:generate` after editing the schema. The brand guard reads terms
+from `BRAND_GUARD_TERMS` or a gitignored `.brand-guard-terms` file and skips with a warning locally when neither exists.
 
 ## Module map
 

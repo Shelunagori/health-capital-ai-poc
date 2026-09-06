@@ -133,8 +133,8 @@ Two details differ from the original plan text because of the tools involved.
 
 | Milestone    | Delivers                                                                          |
 | ------------ | --------------------------------------------------------------------------------- |
-| M0 (current) | Workspace, platform baseline, brand guard, CI skeleton, this documentation        |
-| M1           | Data model, classification registry, synthetic seed                               |
+| M0           | Workspace, platform baseline, brand guard, CI skeleton, documentation             |
+| M1 (current) | Data model, classification registry, synthetic seed                               |
 | M2           | Authentication, authorization, audit                                              |
 | M3           | Benefits, integrations, deterministic eligibility (full product value without AI) |
 | M4           | AI provider, sanitization boundary, tool calling, guidance flow                   |
