@@ -6,6 +6,7 @@ import type { Db } from './platform/db.js';
 import { registerSecurity } from './platform/http/security.js';
 import { registerErrorHandler } from './platform/http/error-handler.js';
 import { registerHealth } from './platform/http/health.js';
+import { registerReady } from './platform/http/ready.js';
 import {
   AuthService,
   createTokenSigner,
@@ -15,19 +16,43 @@ import {
 import { MemberRepository, registerMemberRoutes } from './modules/members/index.js';
 import { AuditService, registerAuditRoutes } from './modules/audit/index.js';
 import { AccessGuard } from './modules/authorization/index.js';
+import { BenefitsService } from './modules/benefits/index.js';
+import {
+  ScenarioController,
+  SyntheticBenefitsAdministratorAdapter,
+  SyntheticCardSystemAdapter,
+  SyntheticEmployerSystemAdapter,
+  type Adapters,
+} from './modules/integrations/index.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
   /** Any pino-compatible logger; main.ts passes the instance from createLogger(). */
   logger: FastifyBaseLogger;
   db: Db;
+  /** Lets a test drive the synthetic external systems without rebuilding the app. */
+  scenarios?: ScenarioController;
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Current behaviour of the synthetic external systems. */
+    scenarios: ScenarioController;
+    /** Adapters as composed at startup, before per-request audit wrapping. */
+    adapters: Adapters;
+  }
 }
 
 /**
  * Wires platform plugins and (from M1 onward) domain modules. Used by main.ts and by tests.
  * The returned instance is not yet `ready()`; callers may add routes before listening/injecting.
  */
-export async function buildApp({ config, logger, db }: BuildAppOptions): Promise<FastifyInstance> {
+export async function buildApp({
+  config,
+  logger,
+  db,
+  scenarios,
+}: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     loggerInstance: logger,
     // Trace id is always server-generated; client-supplied request ids are ignored.
@@ -84,8 +109,19 @@ export async function buildApp({ config, logger, db }: BuildAppOptions): Promise
   registerAuthentication(app, tokens);
 
   registerHealth(app, config);
+  registerReady(app, db);
   const audit = new AuditService(db, app.log);
   const guard = new AccessGuard(audit);
+
+  const scenarioController = scenarios ?? new ScenarioController(config.integrationScenarios);
+  const benefits = new BenefitsService(db);
+  const adapters: Adapters = {
+    employerSystem: new SyntheticEmployerSystemAdapter(db, scenarioController),
+    benefitsAdministrator: new SyntheticBenefitsAdministratorAdapter(benefits, scenarioController),
+    cardSystem: new SyntheticCardSystemAdapter(benefits, scenarioController),
+  };
+  app.decorate('scenarios', scenarioController);
+  app.decorate('adapters', adapters);
 
   registerAuthRoutes(app, {
     service: new AuthService(db, tokens),

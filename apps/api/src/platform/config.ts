@@ -8,6 +8,17 @@ import { z } from 'zod';
  *  - demo: deployed environment; refuses to start when transport or storage settings are obviously unsafe.
  */
 export const AppEnv = z.enum(['local', 'test', 'demo']);
+
+/** Mirrors the integrations module's scenario names, kept here so configuration stays self-contained. */
+const ScenarioName = z.enum([
+  'normal',
+  'unavailable',
+  'timeout',
+  'stale',
+  'conflicting',
+  'not_found',
+]);
+export type ScenarioName = z.infer<typeof ScenarioName>;
 export type AppEnv = z.infer<typeof AppEnv>;
 
 /** Values that look like they were copied from .env.example rather than generated. */
@@ -47,6 +58,10 @@ const RawEnvSchema = z.object({
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).default(300),
   /** Login attempts per window for one client address and submitted address. */
   RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).default(5),
+  // Synthetic external-system behaviour, for demonstrating what happens during an outage.
+  INTEGRATION_SCENARIO_EMPLOYER: ScenarioName.default('normal'),
+  INTEGRATION_SCENARIO_BENEFITS: ScenarioName.default('normal'),
+  INTEGRATION_SCENARIO_CARD: ScenarioName.default('normal'),
 });
 
 export interface AppConfig {
@@ -64,6 +79,11 @@ export interface AppConfig {
   readonly rateLimitWindowMs: number;
   readonly rateLimitGlobalMax: number;
   readonly rateLimitLoginMax: number;
+  readonly integrationScenarios: {
+    readonly employerSystem: ScenarioName;
+    readonly benefitsAdministrator: ScenarioName;
+    readonly cardSystem: ScenarioName;
+  };
 }
 
 export class ConfigError extends Error {
@@ -172,6 +192,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
     rateLimitGlobalMax: raw.RATE_LIMIT_GLOBAL_MAX,
     rateLimitLoginMax: raw.RATE_LIMIT_LOGIN_MAX,
+    integrationScenarios: {
+      employerSystem: raw.INTEGRATION_SCENARIO_EMPLOYER,
+      benefitsAdministrator: raw.INTEGRATION_SCENARIO_BENEFITS,
+      cardSystem: raw.INTEGRATION_SCENARIO_CARD,
+    },
   };
 
   const checks = config.appEnv === 'demo' ? [...alwaysChecks, ...demoChecks] : alwaysChecks;
