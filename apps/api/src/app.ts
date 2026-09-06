@@ -13,6 +13,8 @@ import {
   registerAuthentication,
 } from './modules/auth/index.js';
 import { MemberRepository, registerMemberRoutes } from './modules/members/index.js';
+import { AuditService, registerAuditRoutes } from './modules/audit/index.js';
+import { AccessGuard } from './modules/authorization/index.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -82,12 +84,17 @@ export async function buildApp({ config, logger, db }: BuildAppOptions): Promise
   registerAuthentication(app, tokens);
 
   registerHealth(app, config);
+  const audit = new AuditService(db, app.log);
+  const guard = new AccessGuard(audit);
+
   registerAuthRoutes(app, {
     service: new AuthService(db, tokens),
+    audit,
     loginRateLimitMax: config.rateLimitLoginMax,
     rateLimitWindowMs: config.rateLimitWindowMs,
   });
-  registerMemberRoutes(app, new MemberRepository(db));
+  registerMemberRoutes(app, new MemberRepository(db), guard);
+  registerAuditRoutes(app, db);
 
   return app;
 }

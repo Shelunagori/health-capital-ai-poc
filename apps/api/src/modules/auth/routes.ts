@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { LoginRequestSchema } from '@health-capital/contracts';
 import { AppError } from '../../platform/errors.js';
+import { AuditAction, AuditOutcome, type AuditRecorder } from '../audit/index.js';
 import type { AuthService } from './service.js';
 
 export interface AuthRouteOptions {
   service: AuthService;
+  audit: AuditRecorder;
   /** Requests per window for the login route, keyed by client address and submitted address. */
   loginRateLimitMax: number;
   rateLimitWindowMs: number;
@@ -40,10 +42,39 @@ export function registerAuthRoutes(app: FastifyInstance, options: AuthRouteOptio
       const parsed = LoginRequestSchema.safeParse(request.body);
       if (!parsed.success) {
         // Deliberately not reporting which field failed: the response is identical to a bad password.
+        await options.audit.record({
+          action: AuditAction.AUTH_LOGIN_FAILED,
+          outcome: AuditOutcome.FAILURE,
+          traceId: request.id,
+          metadata: { reason: 'MALFORMED_REQUEST' },
+        });
         throw new AppError('UNAUTHENTICATED', 'Invalid email or password');
       }
 
-      const { response, principal } = await options.service.login(parsed.data);
+      let result;
+      try {
+        result = await options.service.login(parsed.data);
+      } catch (err) {
+        // The address that was tried is never recorded: an audit trail of attempted addresses
+        // would itself be a list of who does and does not hold an account.
+        await options.audit.record({
+          action: AuditAction.AUTH_LOGIN_FAILED,
+          outcome: AuditOutcome.FAILURE,
+          traceId: request.id,
+          metadata: { reason: 'INVALID_CREDENTIALS' },
+        });
+        throw err;
+      }
+      const { response, principal } = result;
+
+      await options.audit.record({
+        action: AuditAction.AUTH_LOGIN_SUCCEEDED,
+        outcome: AuditOutcome.SUCCESS,
+        traceId: request.id,
+        actorUserId: principal.userId,
+        actorRole: principal.role,
+        metadata: {},
+      });
 
       request.log.info(
         {

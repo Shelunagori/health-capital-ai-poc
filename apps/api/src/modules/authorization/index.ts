@@ -9,3 +9,4 @@ export {
   type AuthorizationDecision,
   type Resource,
 } from './policy.js';
+export { AccessGuard, type GuardContext } from './guard.js';

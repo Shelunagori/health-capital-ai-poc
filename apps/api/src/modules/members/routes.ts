@@ -4,9 +4,9 @@ import { AppError } from '../../platform/errors.js';
 import { requirePrincipal } from '../auth/index.js';
 import {
   Action,
-  authorize,
   forbidden,
   type AccessContext,
+  type AccessGuard,
   type Resource,
 } from '../authorization/index.js';
 import {
@@ -24,7 +24,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * what was loaded, then map to the view for that role. The identifier in the path is never trusted
  * as evidence of anything.
  */
-export function registerMemberRoutes(app: FastifyInstance, repository: MemberRepository): void {
+export function registerMemberRoutes(
+  app: FastifyInstance,
+  repository: MemberRepository,
+  guard: AccessGuard,
+): void {
   const readPathMemberId = (request: FastifyRequest): string => {
     const { memberId } = request.params as { memberId?: string };
     if (typeof memberId !== 'string' || !UUID.test(memberId)) {
@@ -54,7 +58,13 @@ export function registerMemberRoutes(app: FastifyInstance, repository: MemberRep
       memberId: loaded.member.id,
       employerIds: loaded.employerIds,
     };
-    if (!authorize(principal, Action.READ_OWN_PROFILE, resource).allowed) throw forbidden();
+    await guard.require({
+      traceId: request.id,
+      principal,
+      action: Action.READ_OWN_PROFILE,
+      resource,
+      resourceId: loaded.member.id,
+    });
 
     return toMemberSelfDto(loaded.member);
   });
@@ -71,7 +81,13 @@ export function registerMemberRoutes(app: FastifyInstance, repository: MemberRep
       memberId: loaded.member.id,
       employerIds: loaded.employerIds,
     };
-    if (!authorize(principal, Action.READ_OWN_ENROLLMENT, resource).allowed) throw forbidden();
+    await guard.require({
+      traceId: request.id,
+      principal,
+      action: Action.READ_OWN_ENROLLMENT,
+      resource,
+      resourceId: loaded.member.id,
+    });
 
     const enrollments = await repository.listEnrollments(loaded.member.id);
     return { enrollments: enrollments.map(toEnrollmentDto) };
@@ -91,13 +107,14 @@ export function registerMemberRoutes(app: FastifyInstance, repository: MemberRep
       memberId: loaded.member.id,
       employerIds: loaded.employerIds,
     };
-    const decision = authorize(
+    await guard.require({
+      traceId: request.id,
       principal,
-      Action.READ_MEMBER_PROFILE,
+      action: Action.READ_MEMBER_PROFILE,
       resource,
-      readJustification(request),
-    );
-    if (!decision.allowed) throw forbidden();
+      access: readJustification(request),
+      resourceId: loaded.member.id,
+    });
 
     return toMemberSelfDto(loaded.member);
   });
@@ -115,7 +132,13 @@ export function registerMemberRoutes(app: FastifyInstance, repository: MemberRep
       memberId: loaded.member.id,
       employerIds: loaded.employerIds,
     };
-    if (!authorize(principal, Action.READ_MEMBER_SUMMARY, resource).allowed) throw forbidden();
+    await guard.require({
+      traceId: request.id,
+      principal,
+      action: Action.READ_MEMBER_SUMMARY,
+      resource,
+      resourceId: loaded.member.id,
+    });
 
     const enrollment = await repository.latestEnrollment(loaded.member.id);
     if (enrollment === null) throw new AppError('NOT_FOUND', 'Not found');
@@ -136,7 +159,13 @@ export function registerMemberRoutes(app: FastifyInstance, repository: MemberRep
     if (!(await repository.employerExists(employerId))) throw forbidden();
 
     const resource: Resource = { kind: 'EMPLOYER', employerId };
-    if (!authorize(principal, Action.LIST_EMPLOYER_MEMBERS, resource).allowed) throw forbidden();
+    await guard.require({
+      traceId: request.id,
+      principal,
+      action: Action.LIST_EMPLOYER_MEMBERS,
+      resource,
+      resourceId: employerId,
+    });
 
     const rows = await repository.listByEmployer(employerId);
     return {
