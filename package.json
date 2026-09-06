@@ -15,7 +15,7 @@
     "dev:web": "pnpm --filter @health-capital/web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter @health-capital/contracts build && pnpm -r typecheck",
-    "lint": "eslint .",
+    "lint": "pnpm --filter @health-capital/contracts build && eslint .",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "test": "pnpm --filter @health-capital/contracts build && pnpm -r test",
