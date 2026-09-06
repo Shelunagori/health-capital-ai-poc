@@ -1,7 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { LoginForm } from '@/components/login-form';
 import { MemberView } from '@/components/member-view';
+import { EmployerView } from '@/components/employer-view';
+import { SupportView } from '@/components/support-view';
+import { api } from '@/lib/api-client';
 import { useSession } from '@/lib/session';
 
 /**
@@ -27,16 +31,29 @@ export default function HomePage(): JSX.Element {
     );
   }
 
-  if (session.role === 'MEMBER') return <MemberView />;
+  return <RoleView />;
+}
 
-  return (
-    <div className="stack">
-      <header className="page-header">
-        <h1>Health Capital</h1>
-      </header>
-      <section className="panel">
-        <p>Signed in as {session.role.toLowerCase().replace('_', ' ')}.</p>
-      </section>
-    </div>
-  );
+/**
+ * Which view a role gets. The server decides what each role may actually read, so this only picks
+ * the right page rather than acting as a control.
+ */
+function RoleView(): JSX.Element {
+  const { session } = useSession();
+  const [employerId, setEmployerId] = useState<string | null>(null);
+  const token = session?.token ?? null;
+
+  useEffect(() => {
+    if (token === null || session?.role !== 'EMPLOYER_ADMIN') return;
+    void api
+      .context(token)
+      .then((context) => setEmployerId(context.employerId))
+      .catch(() => setEmployerId(null));
+  }, [token, session?.role]);
+
+  if (session === null) return <p>You are signed out.</p>;
+  if (session.role === 'MEMBER') return <MemberView />;
+  if (session.role === 'SUPPORT') return <SupportView />;
+  if (employerId === null) return <p>Loading your employer details…</p>;
+  return <EmployerView employerId={employerId} />;
 }

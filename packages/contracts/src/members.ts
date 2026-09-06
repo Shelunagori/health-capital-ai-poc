@@ -81,3 +81,45 @@ export const PrivilegedReadQuerySchema = z
   })
   .strict();
 export type PrivilegedReadQuery = z.infer<typeof PrivilegedReadQuerySchema>;
+
+/** The caller's own scope, read back from their token. Never anyone else's. */
+export const PrincipalContextDtoSchema = z
+  .object({
+    role: z.enum(['MEMBER', 'EMPLOYER_ADMIN', 'SUPPORT']),
+    memberId: z.string().uuid().nullable(),
+    employerId: z.string().uuid().nullable(),
+  })
+  .strict();
+export type PrincipalContextDto = z.infer<typeof PrincipalContextDtoSchema>;
+
+export const EmployerSummaryDtoSchema = z
+  .object({ employerId: z.string().uuid(), name: z.string(), employerRef: z.string() })
+  .strict();
+export type EmployerSummaryDto = z.infer<typeof EmployerSummaryDtoSchema>;
+
+/**
+ * A plan as an employer administrator sees it: the rules of the plan itself.
+ * Nothing here is about any individual, so there is no member data to leave out.
+ */
+export const PlanCoverageDtoSchema = z
+  .object({
+    category: z.string(),
+    covered: z.boolean(),
+    annualLimitCents: z.number().int().nullable(),
+    receiptRequired: z.boolean(),
+    ruleRef: z.string(),
+  })
+  .strict();
+
+export const EmployerPlanDtoSchema = z
+  .object({
+    planId: z.string().uuid(),
+    name: z.string(),
+    planYearStart: z.string(),
+    planYearEnd: z.string(),
+    planConfigVersion: z.number().int(),
+    planConfigAsOf: z.string(),
+    coverage: z.array(PlanCoverageDtoSchema),
+  })
+  .strict();
+export type EmployerPlanDto = z.infer<typeof EmployerPlanDtoSchema>;

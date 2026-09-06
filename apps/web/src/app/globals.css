@@ -24,7 +24,11 @@ body {
   margin: 0;
   background: var(--ground);
   color: var(--ink);
-  font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font:
+    16px/1.55 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
 }
 
 .shell {
@@ -260,4 +264,40 @@ summary:focus-visible {
 }
 .source {
   margin: 0.6rem 0 0;
+}
+
+/* Tables scroll inside their own box so a narrow screen never scrolls the page sideways. */
+.table-scroll {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.table thead th {
+  color: var(--ink-quiet);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

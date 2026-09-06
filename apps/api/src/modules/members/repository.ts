@@ -90,6 +90,40 @@ export class MemberRepository {
     return enrollments.map(({ member, ...enrollment }) => ({ member, enrollment }));
   }
 
+  async listEmployers(): Promise<{ id: string; name: string; externalRef: string }[]> {
+    return this.db.employer.findMany({
+      select: { id: true, name: true, externalRef: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /** Plans belonging to one employer. Plan rules, not anyone's data. */
+  async listPlansByEmployer(employerId: string): Promise<
+    {
+      id: string;
+      name: string;
+      planYearStart: Date;
+      planYearEnd: Date;
+      planConfigVersion: number;
+      planConfigAsOf: Date;
+      coverageRules: unknown;
+    }[]
+  > {
+    return this.db.plan.findMany({
+      where: { employerId },
+      select: {
+        id: true,
+        name: true,
+        planYearStart: true,
+        planYearEnd: true,
+        planConfigVersion: true,
+        planConfigAsOf: true,
+        coverageRules: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async employerExists(employerId: string): Promise<boolean> {
     const employer = await this.db.employer.findUnique({
       where: { id: employerId },

@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { PrivilegedReadQuerySchema } from '@health-capital/contracts';
 import { AppError } from '../../platform/errors.js';
+import { parseCoverageRules } from '../benefits/index.js';
 import { requirePrincipal } from '../auth/index.js';
 import {
   Action,
@@ -18,6 +19,25 @@ import {
 import type { MemberRepository } from './repository.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Reads stored plan rules for display, naming every field rather than forwarding the raw JSON. */
+function parseCoverage(value: unknown): {
+  category: string;
+  covered: boolean;
+  annualLimitCents: number | null;
+  receiptRequired: boolean;
+  ruleRef: string;
+}[] {
+  const rules = parseCoverageRules(value);
+  if (rules === null) return [];
+  return rules.map((rule) => ({
+    category: rule.category,
+    covered: rule.covered,
+    annualLimitCents: rule.annualLimitCents,
+    receiptRequired: rule.substantiation === 'RECEIPT_REQUIRED',
+    ruleRef: rule.ruleRef,
+  }));
+}
 
 /**
  * Every handler here follows the same order: prove identity, load the resource, authorize against
@@ -146,6 +166,65 @@ export function registerMemberRoutes(
     return principal.role === 'SUPPORT'
       ? toSupportMemberSummaryDto(loaded.member, enrollment)
       : toEmployerMemberSummaryDto(loaded.member, enrollment);
+  });
+
+  /**
+   * The caller's own scope, read back from their verified token. It reveals nothing they did not
+   * already present, and lets a client know which view to draw without decoding a token itself.
+   */
+  app.get('/me/context', (request) => {
+    const principal = requirePrincipal(request);
+    return {
+      role: principal.role,
+      memberId: principal.memberId,
+      employerId: principal.employerId,
+    };
+  });
+
+  /** Employers, for a support caller who needs to find one before looking anything up. */
+  app.get('/employers', async (request) => {
+    const principal = requirePrincipal(request);
+    if (principal.role !== 'SUPPORT') throw forbidden();
+
+    const employers = await repository.listEmployers();
+    return {
+      employers: employers.map((employer) => ({
+        employerId: employer.id,
+        name: employer.name,
+        employerRef: employer.externalRef,
+      })),
+    };
+  });
+
+  /** A plan's own rules. Nothing here is about an individual. */
+  app.get('/employers/:employerId/plans', async (request) => {
+    const principal = requirePrincipal(request);
+    const { employerId } = request.params as { employerId?: string };
+    if (typeof employerId !== 'string' || !UUID.test(employerId)) {
+      throw new AppError('VALIDATION_ERROR', 'employerId must be a UUID');
+    }
+    if (!(await repository.employerExists(employerId))) throw forbidden();
+
+    await guard.require({
+      traceId: request.id,
+      principal,
+      action: Action.READ_EMPLOYER_PLAN,
+      resource: { kind: 'EMPLOYER', employerId },
+      resourceId: employerId,
+    });
+
+    const plans = await repository.listPlansByEmployer(employerId);
+    return {
+      plans: plans.map((plan) => ({
+        planId: plan.id,
+        name: plan.name,
+        planYearStart: plan.planYearStart.toISOString().slice(0, 10),
+        planYearEnd: plan.planYearEnd.toISOString().slice(0, 10),
+        planConfigVersion: plan.planConfigVersion,
+        planConfigAsOf: plan.planConfigAsOf.toISOString(),
+        coverage: parseCoverage(plan.coverageRules),
+      })),
+    };
   });
 
   /** Everyone enrolled with the caller's employer. Support may name any employer. */

@@ -336,3 +336,83 @@ describe('every refusal reaches the audit trail', () => {
     expect(events.map((e) => e.action)).toContain('AUTHZ_DENIED');
   });
 });
+
+/** The endpoints the employer and support views depend on, checked at their own boundaries. */
+describe('employer plan and directory endpoints', () => {
+  let harness: TestApp;
+  let app: FastifyInstance;
+  let db: PrismaClient;
+  let northstarId: string;
+  let harborId: string;
+  let adminNorthstar: { authorization: string };
+  let support: { authorization: string };
+  let sarah: { authorization: string };
+
+  beforeAll(async () => {
+    db = createTestDb();
+    harness = await createTestApp({ db });
+    app = harness.app;
+    northstarId = (await db.employer.findUniqueOrThrow({ where: { externalRef: 'EMP-001' } })).id;
+    harborId = (await db.employer.findUniqueOrThrow({ where: { externalRef: 'EMP-002' } })).id;
+    [adminNorthstar, support, sarah] = await Promise.all([
+      authHeader(app, SEEDED.adminNorthstar),
+      authHeader(app, SEEDED.support),
+      authHeader(app, SEEDED.memberSarah),
+    ]);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+    await db.$disconnect();
+  });
+
+  it('lets an administrator read their own plan rules', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/employers/${northstarId}/plans`,
+      headers: adminNorthstar,
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ plans: { coverage: { category: string }[] }[] }>();
+    expect(body.plans[0]?.coverage.length).toBe(8);
+    // Plan rules, not anyone's data.
+    expect(res.body).not.toMatch(/Sarah|Thompson|NS-1001|MBR-/);
+  });
+
+  it('refuses another employer plan', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/employers/${harborId}/plans`,
+      headers: adminNorthstar,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('refuses a member entirely', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/employers/${northstarId}/plans`,
+      headers: sarah,
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('lists employers for support only', async () => {
+    expect(
+      (await app.inject({ method: 'GET', url: '/employers', headers: support })).statusCode,
+    ).toBe(200);
+    for (const headers of [adminNorthstar, sarah]) {
+      expect((await app.inject({ method: 'GET', url: '/employers', headers })).statusCode).toBe(
+        403,
+      );
+    }
+  });
+
+  it('returns only the caller own scope from the context endpoint', async () => {
+    const res = await app.inject({ method: 'GET', url: '/me/context', headers: adminNorthstar });
+    expect(res.json()).toEqual({ role: 'EMPLOYER_ADMIN', memberId: null, employerId: northstarId });
+
+    const asMember = await app.inject({ method: 'GET', url: '/me/context', headers: sarah });
+    expect(asMember.json<{ employerId: null }>().employerId).toBeNull();
+  });
+});
