@@ -169,6 +169,18 @@ retention workflows, alerting, payments, receipt capture, a human review workflo
 control a production system would want, and each was left out as a decision rather than an
 oversight. [The threat model](docs/threat-model.md) lists them with what they would address.
 
+## Seeing it running
+
+Not deployed. The hosting configuration is complete and everything checkable without an account has
+been checked, but no account was available, so there is no live URL and nothing about a running
+deployment is claimed. [The demonstration notes](docs/demo.md) separate what was verified from what
+still needs the running environment.
+
+To put it up: point the platform at `render.yaml` for the API and its database, and at `apps/web`
+for the client, then run the demo database workflow. The API refuses to start unless the public
+endpoints are HTTPS, the database connection requires TLS, the signing secret is real, and the
+cross-origin allowlist is neither empty nor a wildcard.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md) — modules, data model, eligibility rules
@@ -176,4 +188,5 @@ oversight. [The threat model](docs/threat-model.md) lists them with what they wo
 - [Threat model](docs/threat-model.md) — what is defended, and what is deliberately not
 - [AI architecture](docs/ai-architecture.md) — the provider boundary and its limitations
 - [AI-assisted development](docs/ai-assisted-development.md) — how this was built, and by whom
+- [Demonstration notes](docs/demo.md) — deploying it, and what to check once it is up
 - [Architecture decision records](docs/adr/) — the decisions, with their reasons
