@@ -42,6 +42,12 @@ COPY --from=build /app/apps/api/prisma.config.ts apps/api/
 COPY --from=build /app/apps/api/package.json apps/api/
 COPY package.json pnpm-workspace.yaml ./
 
+# Every COPY above runs as root, so the workspace lands owned by root. A pre-deploy step such as
+# `prisma migrate deploy` runs through pnpm, which writes a temporary lockfile inside the workspace
+# and fails with a permission error when it cannot. Handing the workspace to the unprivileged user
+# is what lets a deployment command run without any of it running as root.
+RUN chown -R node:node /app
+
 # Runs unprivileged. The image carries no secret: every one arrives from the platform at runtime.
 USER node
 EXPOSE 3001
