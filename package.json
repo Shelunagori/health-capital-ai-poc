@@ -23,7 +23,8 @@
     "db:migrate": "pnpm --filter @health-capital/api db:migrate",
     "db:deploy": "pnpm --filter @health-capital/api db:deploy",
     "db:seed": "pnpm --filter @health-capital/api db:seed",
-    "db:reset": "pnpm --filter @health-capital/api db:reset"
+    "db:reset": "pnpm --filter @health-capital/api db:reset",
+    "test:security": "pnpm --filter @health-capital/contracts build && pnpm --filter @health-capital/api test:security"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

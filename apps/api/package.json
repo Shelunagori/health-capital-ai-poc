@@ -20,7 +20,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test:security": "vitest run --project security"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",

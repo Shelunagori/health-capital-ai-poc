@@ -19,6 +19,17 @@ export default defineConfig({
       },
       {
         test: {
+          name: 'security',
+          include: ['test/security/**/*.test.ts'],
+          environment: 'node',
+          poolOptions: { threads: { singleThread: true } },
+          globalSetup: ['test/helpers/integration-setup.ts'],
+          testTimeout: 20_000,
+          hookTimeout: 20_000,
+        },
+      },
+      {
+        test: {
           name: 'integration',
           include: ['test/integration/**/*.test.ts'],
           environment: 'node',

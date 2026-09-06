@@ -12,6 +12,7 @@ import {
   registerAuthRoutes,
   registerAuthentication,
 } from './modules/auth/index.js';
+import { MemberRepository, registerMemberRoutes } from './modules/members/index.js';
 
 export interface BuildAppOptions {
   config: AppConfig;
@@ -86,6 +87,7 @@ export async function buildApp({ config, logger, db }: BuildAppOptions): Promise
     loginRateLimitMax: config.rateLimitLoginMax,
     rateLimitWindowMs: config.rateLimitWindowMs,
   });
+  registerMemberRoutes(app, new MemberRepository(db));
 
   return app;
 }

@@ -39,6 +39,32 @@ and tenancy checks and to audit.
 Out of scope and distinct from the above: application-level per-field encryption, envelope encryption,
 customer-managed KMS keys, custom key rotation, tokenization services.
 
+## Authorization
+
+Every handler follows the same order: prove identity, load the resource, authorize against what was
+loaded, then map to the view for that role. An identifier in a path or body is a claim; the loaded
+record is the fact. Employer scope resolves through enrollments, because a member record carries no
+employer of its own.
+
+| Action                                                     | Member   | Employer administrator        | Support                         |
+| ---------------------------------------------------------- | -------- | ----------------------------- | ------------------------------- |
+| Own profile, enrollment, balance, ledger, decisions        | own only | refused                       | refused                         |
+| Evaluate eligibility, ask guidance                         | own only | refused                       | refused                         |
+| A named member's profile, care requests, decisions, ledger | own only | **refused, with no override** | coded reason and case reference |
+| A named member's non-clinical summary                      | own only | own tenancy only              | any                             |
+| Employer plan, member roster                               | refused  | own employer only             | any                             |
+| Audit events                                               | refused  | refused                       | allowed                         |
+
+Refusals are uniform: the same status and message whether the resource is absent, belongs to
+someone else, or sits under another employer, so a caller cannot map the data set by probing.
+
+An employer administrator is never shown a member's treatment category, service date, amounts,
+balances or decisions. There is no reason code that unlocks it. The employer view is an explicit
+field list, so a column added to the database cannot widen it.
+
+Support privileged reads need a reason code from a closed list and a case reference matching a
+fixed format. Free-text justification is never accepted or stored.
+
 ## Data classification and integrity
 
 Every persisted field carries a data class (PII, PHI, FIN, SECRET, INTERNAL, PUBLIC) in

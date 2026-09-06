@@ -97,4 +97,5 @@ jobs:
           pnpm db:deploy
           pnpm db:seed
           pnpm test:integration
+          pnpm test:security
       - run: pnpm build

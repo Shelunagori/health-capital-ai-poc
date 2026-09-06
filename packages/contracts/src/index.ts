@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export * from './auth.js';
+export * from './members.js';
 
 /**
  * Shared request/response contracts between the API and the web client.
