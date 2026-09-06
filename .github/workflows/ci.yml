@@ -98,4 +98,6 @@ jobs:
           pnpm db:seed
           pnpm test:integration
           pnpm test:security
+          pnpm test:privacy
+          pnpm test:ai-pipeline
       - run: pnpm build

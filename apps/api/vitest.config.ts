@@ -30,6 +30,39 @@ export default defineConfig({
       },
       {
         test: {
+          name: 'privacy',
+          include: ['test/privacy/**/*.test.ts'],
+          environment: 'node',
+          poolOptions: { threads: { singleThread: true } },
+          globalSetup: ['test/helpers/integration-setup.ts'],
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+        },
+      },
+      {
+        test: {
+          name: 'ai-pipeline',
+          include: ['test/ai-pipeline/**/*.test.ts'],
+          environment: 'node',
+          poolOptions: { threads: { singleThread: true } },
+          globalSetup: ['test/helpers/integration-setup.ts'],
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+        },
+      },
+      {
+        test: {
+          name: 'ai-live',
+          include: ['test/ai-live/**/*.test.ts'],
+          environment: 'node',
+          poolOptions: { threads: { singleThread: true } },
+          globalSetup: ['test/helpers/integration-setup.ts'],
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+        },
+      },
+      {
+        test: {
           name: 'integration',
           include: ['test/integration/**/*.test.ts'],
           environment: 'node',

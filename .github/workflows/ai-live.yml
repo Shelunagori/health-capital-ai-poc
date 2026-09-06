@@ -1,0 +1,52 @@
+# Live model evaluations. Opt-in only: never part of the pull-request gate, because a
+# non-deterministic external service is a poor thing to block a merge on, and it costs money.
+name: AI live evaluations
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, so a change in model behaviour surfaces without anyone remembering to look.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: Golden questions against a real model
+    runs-on: ubuntu-latest
+    # Without a key the job would only prove that skipping works, which CI already proves.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.AI_LIVE_ENABLED == 'true' }}
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/health_capital_ci?schema=public
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: health_capital_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply migrations and load synthetic seed data
+        run: |
+          SEED_USER_PASSWORD="$(openssl rand -base64 24)"
+          export SEED_USER_PASSWORD
+          pnpm db:deploy
+          pnpm db:seed
+          pnpm test:ai-live

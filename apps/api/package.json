@@ -21,7 +21,10 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
-    "test:security": "vitest run --project security"
+    "test:security": "vitest run --project security",
+    "test:privacy": "vitest run --project privacy",
+    "test:ai-pipeline": "vitest run --project ai-pipeline",
+    "test:ai-live": "vitest run --project ai-live"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
