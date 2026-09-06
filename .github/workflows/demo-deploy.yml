@@ -32,7 +32,7 @@ jobs:
       # and this step would then deploy a schema no running process could use.
       DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
