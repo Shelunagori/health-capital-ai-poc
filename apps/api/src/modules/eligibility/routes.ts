@@ -11,6 +11,9 @@ import type { BenefitsService } from '../benefits/index.js';
 import type { Db } from '../../platform/db.js';
 import type { AuditService } from '../audit/index.js';
 
+/** Stands in for a caller who holds no member reference. Never matched: such a caller is refused on role. */
+const UNASSIGNED_MEMBER = '00000000-0000-0000-0000-000000000000';
+
 export interface EligibilityRouteOptions {
   db: Db;
   benefits: BenefitsService;
@@ -32,7 +35,6 @@ export function registerEligibilityRoutes(
 ): void {
   app.post('/me/eligibility/evaluate', async (request, reply) => {
     const principal = requirePrincipal(request);
-    if (principal.memberId === null) throw forbidden();
 
     const parsed = EvaluateEligibilityRequestSchema.safeParse(request.body);
     if (!parsed.success) {
@@ -42,22 +44,29 @@ export function registerEligibilityRoutes(
       );
     }
 
-    const enrollments = await options.db.benefitEnrollment.findMany({
-      where: { memberId: principal.memberId },
-      select: { employerId: true },
-    });
+    const enrollments =
+      principal.memberId === null
+        ? []
+        : await options.db.benefitEnrollment.findMany({
+            where: { memberId: principal.memberId },
+            select: { employerId: true },
+          });
 
+    // Authorization runs before any short-circuit, so a refusal is always recorded. A caller with
+    // no member reference is refused on role, so the placeholder identifier is never compared.
     await options.guard.require({
       traceId: request.id,
       principal,
       action: Action.EVALUATE_OWN_ELIGIBILITY,
       resource: {
         kind: 'MEMBER',
-        memberId: principal.memberId,
+        memberId: principal.memberId ?? UNASSIGNED_MEMBER,
         employerIds: enrollments.map((e) => e.employerId),
       },
       resourceId: principal.memberId,
     });
+
+    if (principal.memberId === null) throw forbidden();
 
     const service = new EligibilityService(
       options.db,

@@ -275,3 +275,64 @@ describe('authorization boundaries', () => {
     });
   });
 });
+
+/**
+ * A refusal that is not recorded is a refusal nobody can review later. Both member-scoped write
+ * paths are checked, because both had a short-circuit that ran before the authorization step.
+ */
+describe('every refusal reaches the audit trail', () => {
+  let harness: TestApp;
+  let app: FastifyInstance;
+  let db: PrismaClient;
+  let adminNorthstar: { authorization: string };
+
+  beforeAll(async () => {
+    db = createTestDb();
+    harness = await createTestApp({ db });
+    app = harness.app;
+    adminNorthstar = await authHeader(app, SEEDED.adminNorthstar);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+    await db.$disconnect();
+  });
+
+  it('records an employer administrator refused an eligibility evaluation', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/me/eligibility/evaluate',
+      headers: adminNorthstar,
+      payload: {
+        treatmentCategory: 'DENTAL',
+        expenseAmountCents: 1_000,
+        serviceDate: '2026-05-04',
+      },
+    });
+    expect(res.statusCode).toBe(403);
+
+    const events = await db.auditEvent.findMany({
+      where: { traceId: res.headers['x-trace-id'] as string },
+    });
+    expect(events.map((e) => e.action)).toContain('AUTHZ_DENIED');
+    expect(events[0]?.metadata).toMatchObject({
+      attemptedAction: 'EVALUATE_OWN_ELIGIBILITY',
+      denialReason: 'ROLE_NOT_PERMITTED',
+    });
+  });
+
+  it('records an employer administrator refused guidance', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/me/guidance/ask',
+      headers: adminNorthstar,
+      payload: { question: 'is dental covered' },
+    });
+    expect(res.statusCode).toBe(403);
+
+    const events = await db.auditEvent.findMany({
+      where: { traceId: res.headers['x-trace-id'] as string },
+    });
+    expect(events.map((e) => e.action)).toContain('AUTHZ_DENIED');
+  });
+});
