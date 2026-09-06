@@ -14,6 +14,19 @@ member question, **"Can I use my health capital to pay for this healthcare expen
 It is not based on or connected to any private company systems, data, APIs, or proprietary architecture.
 Synthetic data only. All business rules are synthetic POC semantics. **No HIPAA compliance is claimed.**
 
+## Live demo
+
+- **Web:** <https://health-capital-ai-poc.vercel.app>
+- **API readiness:** <https://health-capital-api.up.railway.app/ready>
+
+The client runs on Vercel and calls the API on Railway, which uses a managed PostgreSQL database on
+Railway. Sign-in details are synthetic and shared out of band, not from this repository.
+
+Gemini is optional. When no provider is configured, or the one configured does not answer, the
+assistant says so and the "Check an expense" form still gives a full decision from the plan rules,
+because nothing in that path needs a model. The deployed instance currently shows that fallback: the
+provider key is on a free tier whose quota is exhausted.
+
 ## Principles
 
 1. `authoritative data + deterministic rules -> eligibility decision -> AI explanation`
@@ -27,24 +40,26 @@ Synthetic data only. All business rules are synthetic POC semantics. **No HIPAA 
 
 Every milestone is implemented.
 
-| Milestone | Delivers                                               | State                                |
-| --------- | ------------------------------------------------------ | ------------------------------------ |
-| M0        | Workspace, platform baseline, brand guard, CI          | Complete                             |
-| M1        | Data model, classification registry, synthetic seed    | Complete                             |
-| M2        | Authentication, authorization, audit                   | Complete                             |
-| M3        | Benefits, integrations, deterministic eligibility      | Complete                             |
-| M4        | AI provider boundary, tool calling, grounded guidance  | Complete                             |
-| M5        | Web client for members, employers and support          | Complete                             |
-| M6        | Threat model, security documentation, demo walkthrough | Complete                             |
-| M7        | Deployment configuration and documentation             | Configuration complete, not deployed |
+| Milestone | Delivers                                               | State              |
+| --------- | ------------------------------------------------------ | ------------------ |
+| M0        | Workspace, platform baseline, brand guard, CI          | Complete           |
+| M1        | Data model, classification registry, synthetic seed    | Complete           |
+| M2        | Authentication, authorization, audit                   | Complete           |
+| M3        | Benefits, integrations, deterministic eligibility      | Complete           |
+| M4        | AI provider boundary, tool calling, grounded guidance  | Complete           |
+| M5        | Web client for members, employers and support          | Complete           |
+| M6        | Threat model, security documentation, demo walkthrough | Complete           |
+| M7        | Deployment configuration and documentation             | Complete, deployed |
 
-Two things are deliberately unclaimed, both needing access this work did not have.
+It is deployed, and one thing is deliberately unclaimed.
 
-- **Not deployed.** There is no live URL. The hosting configuration is complete and everything
-  checkable without an account was checked; what still needs a running environment is listed
-  unticked in [the demonstration notes](docs/demo.md).
-- **Live model evaluations unverified.** No provider key was available, so the golden-question suite
-  has never run against a real model. It skips cleanly and is not part of the merge gate.
+- **A live model answer from the deployed instance is unverified.** The provider key there is on a
+  free tier whose quota is exhausted, so what production currently demonstrates is the graceful
+  fallback, not a successful model response. Live model behaviour was exercised during development
+  against a real key; the golden-question suite skips without one and is not part of the merge gate.
+
+[The demonstration notes](docs/demo.md) separate what has been checked against the running
+environment from what has not.
 
 See [docs/architecture.md](docs/architecture.md) for how the pieces fit together.
 
@@ -64,11 +79,11 @@ The seed stores only an Argon2id hash of `SEED_USER_PASSWORD`. No plaintext pass
 the database, to source, or to the seed output. Seeded sign-in identities are listed when the seed
 runs, all under `example.test`.
 
-One repository setting is needed before continuous integration is fully green. The brand guard reads
-the terms it rejects from a repository variable rather than from a committed file, because a list of
-forbidden terms in the repository would put those terms in the repository. Set `BRAND_GUARD_TERMS`
-under Settings, then Secrets and variables, then Actions, then Variables. Until it is set that one
-job fails on purpose; everything else still runs and reports.
+Continuous integration needs one repository variable, `BRAND_GUARD_TERMS`, set under Settings, then
+Secrets and variables, then Actions, then Variables. It is configured here. The brand guard reads
+the terms it rejects from that variable rather than from a committed file, because a list of
+forbidden terms in the repository would put those terms in the repository, and it fails the job
+rather than skipping if the variable is ever missing. A fork needs its own before that job passes.
 
 Quality gates:
 
@@ -184,15 +199,16 @@ oversight. [The threat model](docs/threat-model.md) lists them with what they wo
 
 ## Seeing it running
 
-Not deployed. The hosting configuration is complete and everything checkable without an account has
-been checked, but no account was available, so there is no live URL and nothing about a running
-deployment is claimed. [The demonstration notes](docs/demo.md) separate what was verified from what
-still needs the running environment.
+It is up: <https://health-capital-ai-poc.vercel.app>, with the API at
+<https://health-capital-api.up.railway.app> and its readiness endpoint at
+[`/ready`](https://health-capital-api.up.railway.app/ready).
 
-To put it up: point the platform at `render.yaml` for the API and its database, and at `apps/web`
-for the client, then run the demo database workflow. The API refuses to start unless the public
+The topology is three pieces: the Next.js client on Vercel, the Fastify API in its container on
+Railway, and Railway's managed PostgreSQL behind it. The API refuses to start unless the public
 endpoints are HTTPS, the database connection requires TLS, the signing secret is real, and the
-cross-origin allowlist is neither empty nor a wildcard.
+cross-origin allowlist is neither empty nor a wildcard, so a misconfigured demonstration does not
+serve at all. [The demonstration notes](docs/demo.md) cover deploying it and what has been checked
+against the running environment.
 
 ## Documentation
 

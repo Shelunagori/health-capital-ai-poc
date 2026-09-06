@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -5,6 +6,8 @@ import type { EligibilityDecisionDto } from '@health-capital/contracts';
 import { DecisionCard } from '@/components/decision-card';
 import { VerdictBadge } from '@/components/verdict-badge';
 import { AskPanel } from '@/components/ask-panel';
+import { MemberView } from '@/components/member-view';
+import { SessionProvider, useSession } from '@/lib/session';
 import { api } from '@/lib/api-client';
 
 const decision: EligibilityDecisionDto = {
@@ -166,5 +169,165 @@ describe('asking a question', () => {
   it('says the question is not stored', () => {
     render(<AskPanel token="a-token" onResult={() => undefined} />);
     expect(screen.getByText(/is not stored/i)).toBeInTheDocument();
+  });
+});
+
+const UNAVAILABLE =
+  'The assistant is unavailable right now. You can still check an expense using the form, which does not need it.';
+
+/**
+ * Renders inside a signed-in member session. The provider holds the token in memory with no way to
+ * seed it, so a test signs in the same way the page does.
+ */
+function SignedInMember({ children }: { children: JSX.Element }): JSX.Element {
+  const { session, signIn } = useSession();
+  useEffect(() => {
+    if (session === null) signIn('a-test-token', 'MEMBER', 900);
+  }, [session, signIn]);
+  return session === null ? <p>signing in</p> : children;
+}
+
+function renderMemberPage(): void {
+  render(
+    <SessionProvider>
+      <SignedInMember>
+        <MemberView />
+      </SignedInMember>
+    </SessionProvider>,
+  );
+}
+
+async function ask(question: string): Promise<void> {
+  await userEvent.type(screen.getByLabelText('Your question'), question);
+  await userEvent.click(screen.getByRole('button', { name: 'Ask' }));
+}
+
+describe('recent checks keep one entry per thing that happened', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(api, 'profile').mockResolvedValue({
+      memberId: '33333333-3333-4333-8333-000000000001',
+      firstName: 'Sarah',
+      lastName: 'Thompson',
+      dateOfBirth: '1987-03-14',
+      addressLine: '14 Alder Street',
+      city: 'Riverton',
+      postalCode: '40218',
+    });
+    vi.spyOn(api, 'enrollments').mockResolvedValue({
+      enrollments: [
+        {
+          enrollmentId: '44444444-4444-4444-8444-000000000001',
+          employerName: 'Northstar Industries',
+          planName: 'Northstar Standard Health Capital',
+          status: 'ACTIVE',
+          effectiveFrom: '2024-01-01',
+          effectiveTo: null,
+        },
+      ],
+    });
+  });
+
+  it('shows the assistant-unavailable notice once when the assistant is unavailable', async () => {
+    vi.spyOn(api, 'ask').mockResolvedValue({
+      decision: null,
+      explanation: UNAVAILABLE,
+      explanationSource: 'template',
+      aiStatus: 'unavailable',
+    });
+
+    renderMemberPage();
+    await ask('can I claim physio');
+
+    const shown = await screen.findAllByTestId('clarification');
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toHaveTextContent(UNAVAILABLE);
+  });
+
+  it('does not add a second copy when the same notice comes back again', async () => {
+    vi.spyOn(api, 'ask').mockResolvedValue({
+      decision: null,
+      explanation: UNAVAILABLE,
+      explanationSource: 'template',
+      aiStatus: 'unavailable',
+    });
+
+    renderMemberPage();
+    await ask('can I claim physio');
+    await screen.findByTestId('clarification');
+    await ask('and what about dental');
+
+    await waitFor(() => expect(api.ask).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByTestId('clarification')).toHaveLength(1);
+  });
+
+  it('keeps a different answer that follows the notice', async () => {
+    const asked = vi
+      .spyOn(api, 'ask')
+      .mockResolvedValueOnce({
+        decision: null,
+        explanation: UNAVAILABLE,
+        explanationSource: 'template',
+        aiStatus: 'unavailable',
+      })
+      .mockResolvedValueOnce({
+        decision: null,
+        explanation: 'Tell me which kind of care this is for.',
+        explanationSource: 'template',
+        aiStatus: 'ok',
+      });
+
+    renderMemberPage();
+    await ask('can I claim physio');
+    await screen.findByTestId('clarification');
+    await ask('something else');
+
+    await waitFor(() => expect(asked).toHaveBeenCalledTimes(2));
+    const shown = await screen.findAllByTestId('clarification');
+    expect(shown).toHaveLength(2);
+    expect(shown[0]).toHaveTextContent('Tell me which kind of care this is for.');
+    expect(shown[1]).toHaveTextContent(UNAVAILABLE);
+  });
+
+  it('keeps both when the assistant asks the same thing back twice', async () => {
+    // Not the unavailable notice: the assistant answered, and asked about a different expense each
+    // time. Identical wording does not make the second one a repeat of the first.
+    vi.spyOn(api, 'ask').mockResolvedValue({
+      decision: null,
+      explanation: 'Tell me which kind of care this is for.',
+      explanationSource: 'template',
+      aiStatus: 'ok',
+    });
+
+    renderMemberPage();
+    await ask('what about that appointment');
+    await screen.findByTestId('clarification');
+    await ask('and the other one');
+
+    await waitFor(() => expect(api.ask).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getAllByTestId('clarification')).toHaveLength(2));
+  });
+
+  it('keeps every deterministic check, including two checks of the same expense', async () => {
+    let issued = 0;
+    vi.spyOn(api, 'evaluate').mockImplementation(() => {
+      issued += 1;
+      return Promise.resolve({
+        decision: {
+          ...decision,
+          decisionId: `99999999-9999-4999-8999-00000000010${issued}`,
+        },
+        explanation: 'Part of this expense is covered.',
+        explanationSource: 'template',
+      });
+    });
+
+    renderMemberPage();
+    const check = screen.getByRole('button', { name: 'Check this expense' });
+    await userEvent.click(check);
+    await screen.findByTestId('verdict-badge');
+    await userEvent.click(check);
+
+    await waitFor(() => expect(screen.getAllByTestId('verdict-badge')).toHaveLength(2));
   });
 });

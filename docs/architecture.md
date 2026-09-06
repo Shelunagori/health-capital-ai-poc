@@ -156,18 +156,19 @@ Two details differ from the original plan text because of the tools involved.
 
 ## Milestones
 
-| Milestone | Delivers                                                                          | State                                |
-| --------- | --------------------------------------------------------------------------------- | ------------------------------------ |
-| M0        | Workspace, platform baseline, brand guard, CI skeleton, documentation             | Complete                             |
-| M1        | Data model, classification registry, synthetic seed                               | Complete                             |
-| M2        | Authentication, authorization, audit                                              | Complete                             |
-| M3        | Benefits, integrations, deterministic eligibility (full product value without AI) | Complete                             |
-| M4        | AI provider, sanitization boundary, tool calling, guidance flow                   | Complete                             |
-| M5        | Web client                                                                        | Complete                             |
-| M6        | Hardening, threat model, demo narrative                                           | Complete                             |
-| M7        | Lightweight public demo deployment                                                | Configuration complete, not deployed |
+| Milestone | Delivers                                                                          | State              |
+| --------- | --------------------------------------------------------------------------------- | ------------------ |
+| M0        | Workspace, platform baseline, brand guard, CI skeleton, documentation             | Complete           |
+| M1        | Data model, classification registry, synthetic seed                               | Complete           |
+| M2        | Authentication, authorization, audit                                              | Complete           |
+| M3        | Benefits, integrations, deterministic eligibility (full product value without AI) | Complete           |
+| M4        | AI provider, sanitization boundary, tool calling, guidance flow                   | Complete           |
+| M5        | Web client                                                                        | Complete           |
+| M6        | Hardening, threat model, demo narrative                                           | Complete           |
+| M7        | Lightweight public demo deployment                                                | Complete, deployed |
 
-M7 is configuration and documentation only. Nothing has been deployed, because no hosting account
-was available, and no live environment exists.
+M7 is deployed: the client on Vercel, the API and its managed PostgreSQL database on Railway. The
+URLs and what has been checked against the running environment are in
+[the demonstration notes](demo.md).
 
 Decisions are recorded in `docs/adr/`.

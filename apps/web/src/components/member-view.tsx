@@ -23,6 +23,26 @@ interface Answer {
 }
 
 /**
+ * Whether this answer is the assistant-unavailable notice repeating itself.
+ *
+ * Asking twice while the assistant is unavailable produces that one fixed sentence both times, and
+ * a second copy of it tells the member nothing the first did not. Nothing else is treated as a
+ * repeat: a decision is a real check with its own decision, and a question the assistant asked back
+ * stands on its own even when it is worded identically, because it was asked about something else.
+ */
+function repeatsUnavailableNotice(answer: Answer, answers: readonly Answer[]): boolean {
+  const mostRecent = answers[0];
+  return (
+    mostRecent !== undefined &&
+    answer.decision === null &&
+    mostRecent.decision === null &&
+    answer.aiStatus === 'unavailable' &&
+    mostRecent.aiStatus === 'unavailable' &&
+    mostRecent.explanation === answer.explanation
+  );
+}
+
+/**
  * The member's page: who they are, what they are enrolled in, and the two ways to check an expense.
  *
  * Both routes end at the same card, because both produce the same kind of thing: a decision made by
@@ -62,7 +82,10 @@ export function MemberView(): JSX.Element {
 
   if (token === null) return <p>You are signed out.</p>;
 
-  const addAnswer = (answer: Answer): void => setAnswers((previous) => [answer, ...previous]);
+  const addAnswer = (answer: Answer): void =>
+    setAnswers((previous) =>
+      repeatsUnavailableNotice(answer, previous) ? previous : [answer, ...previous],
+    );
   const activeEnrollment = enrollments.find((enrollment) => enrollment.status === 'ACTIVE') ?? null;
 
   return (

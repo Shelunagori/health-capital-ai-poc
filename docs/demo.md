@@ -2,15 +2,24 @@
 
 How to put this on the internet, and what to check once it is there.
 
-**Current status: not deployed.** Everything below is configured and everything checkable without a
-hosting account has been checked. No account was available during this work, so nothing has been
-deployed and no live URL exists. What has and has not been verified is set out below, and the
-distinction is not glossed over.
+**Current status: deployed.**
+
+| Piece      | Where                                                 |
+| ---------- | ----------------------------------------------------- |
+| Web client | <https://health-capital-ai-poc.vercel.app> (Vercel)   |
+| API        | <https://health-capital-api.up.railway.app> (Railway) |
+| Readiness  | <https://health-capital-api.up.railway.app/ready>     |
+| Database   | Railway managed PostgreSQL                            |
+
+Gemini is optional there, as everywhere else, and its key is on a free tier whose quota is currently
+exhausted. So the deployed instance demonstrates the assistant-unavailable fallback rather than a
+live model answer, and that distinction is kept in the checklist below rather than glossed over.
 
 ## What the hosting has to provide
 
-Four things. Any provider supplying them would do; the configuration in `render.yaml` and
-`apps/web/vercel.json` names one combination.
+Four things. Any provider supplying them would do. The deployment described here uses Railway for
+the API and its database and Vercel for the client; `render.yaml` stays in the repository as a
+second, unexercised combination that supplies the same four.
 
 | Requirement                                                           | Why it is not optional                                           |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -24,15 +33,16 @@ checks, and to the audit trail, however well encrypted the storage is.
 
 ## Deploying
 
-1. **Create the services.** Point the platform at `render.yaml` for the API and the managed
-   database, and at `apps/web` for the client.
+1. **Create the services.** The API is built from `apps/api/Dockerfile` and deployed alongside a
+   managed PostgreSQL database; the client is deployed from `apps/web`. `render.yaml` configures the
+   same shape on another provider if one is preferred.
 2. **Set the values the platform cannot generate.** `PUBLIC_API_URL`, `PUBLIC_WEB_ORIGIN` and
    `CORS_ALLOWED_ORIGINS` on the API, all `https://`; `NEXT_PUBLIC_API_URL` on the client. The
    database URL and the signing secret are supplied by the platform. `GEMINI_API_KEY` is optional:
    without it the assistant declines and everything else works.
-3. **Load the data.** Run the demo database workflow with reseed enabled. It applies migrations and
-   loads the synthetic dataset. It refuses to run against a connection string that does not require
-   TLS.
+3. **Load the data.** Apply migrations and load the synthetic dataset, either as a pre-deploy step
+   on the platform or through the demo database workflow with reseed enabled. Either refuses to run
+   against a connection string that does not require TLS.
 4. **Check it came up.** `GET /ready` returns ready with a migration count.
 
 The API refuses to start if any of this is wrong: not HTTPS, not TLS to the database, a signing
@@ -53,8 +63,9 @@ the output of the seed.
 | Employer administrator | `admin.northstar@example.test`, `admin.harbor@example.test`                           |
 | Support                | `support.desk@example.test`                                                           |
 
-All fictional, all `example.test`. Rotate the password by rerunning the workflow with reseed
-enabled. Share it out of band; do not put it on the sign-in page.
+All fictional, all `example.test`. The password itself is not in this repository and is not on the
+sign-in page of the deployed client; share it out of band. Rotate it by rerunning the seed with a new
+`SEED_USER_PASSWORD`.
 
 ## Verification checklist
 
@@ -73,20 +84,42 @@ Each of these was run against the local stack or the built container.
 | No branding in text                     | Brand guard over tracked files and commit messages | Clean                                                                                                     |
 | No committed secret                     | Secret scanner over committed paths                | Clean                                                                                                     |
 
-### To verify once deployed
+### Verified against the deployed environment
 
-These need the running environment and have **not** been done.
+Each of these was checked by hand on the running deployment.
 
-- [ ] The public API and client answer over HTTPS, and plain HTTP does not serve.
-- [ ] The database connection string requires TLS, and the API started, which means it passed its
-      own check.
+- [x] The API starts in `APP_ENV=demo`, which means it passed its own HTTPS, TLS, secret and CORS
+      checks before serving a single request.
+- [x] Migrations are applied on the managed database.
+- [x] `GET /ready` returns HTTP 200 with the ready response.
+- [x] The synthetic seed loaded: 2 employers, 2 plans, 4 members, 5 benefit enrollments, 5 accounts,
+      17 ledger entries, 7 users.
+- [x] A member signs in and gets their own view.
+- [x] Deterministic eligibility works end to end. Dental for 300.00 as the seeded member returns
+      partially eligible, 150.00 covered, with the receipt condition attached.
+- [x] The employer administrator view works and shows no treatment, amount or decision.
+- [x] A support privileged lookup works, and the audit trail records it with its reason code and
+      case reference.
+- [x] The client on one origin reaches the API on another, so the cross-origin allowlist is right.
+- [x] The assistant-unavailable path degrades gracefully: the member is told the assistant cannot
+      help right now, and "Check an expense" still returns a full decision from the plan rules.
+
+### Still to verify
+
+These need something the deployment does not currently have.
+
+- [ ] A successful live model answer from the deployed instance. **Not verified.** The provider key
+      there is on a free tier whose quota is exhausted, so every request currently takes the
+      fallback path. Live model behaviour was exercised during development against a real key; that
+      is not the same as having seen it answer in production, and it is not claimed as such.
 - [ ] The provider's console shows encryption at rest enabled for the database and its backups.
       Record what it says, not what the plan intended.
 - [ ] Secrets are set in the platform store and appear in no build log.
-- [ ] `GET /ready` returns ready; `GET /health` returns ok.
-- [ ] Signing in as each seeded role produces the right view.
-- [ ] The walkthrough in the README behaves as written against the deployed instance.
+- [ ] Plain HTTP does not serve on either public endpoint.
 - [ ] Rate limits refuse a burst of sign-in attempts.
+- [ ] The rest of the README walkthrough against the deployed instance. Several of its steps drive
+      an integration outage or the database directly, so they are local exercises; what they show
+      has not been re-checked in the deployed environment.
 
 ### Visual brand-neutrality check
 

@@ -95,16 +95,27 @@ pnpm install · docker compose up -d · pnpm db:migrate · pnpm db:deploy · pnp
 pnpm dev (api :3001, web :3000) · pnpm dev:api · pnpm dev:web ·
 pnpm test (unit and component) · pnpm test:integration · pnpm test:security · pnpm test:privacy · pnpm test:ai-pipeline
 (the four above need a migrated and seeded PostgreSQL) ·
-pnpm test:ai-live (runs against a real model; skips every case unless GEMINI_API_KEY is set, and has never been run with one) ·
+pnpm test:ai-live (runs against a real model; skips every case unless GEMINI_API_KEY is set; not part of any gate) ·
 pnpm lint · pnpm format · pnpm typecheck · pnpm build · pnpm brand-guard [--commits <range>] · pnpm docker:build
 pnpm --filter @health-capital/api test src/platform/config.test.ts (single file)
-Deployment preparation only, nothing is deployed: render.yaml, apps/web/vercel.json,
-.github/workflows/demo-deploy.yml and pnpm demo:reseed configure a demonstration that has never been hosted.
 
 Local setup: copy `.env.example` to `.env`; `APP_ENV=local` needs no secrets to boot. `pnpm db:seed` requires
 `SEED_USER_PASSWORD` (at least 12 characters) and stores only its Argon2id hash. The generated Prisma client lives in
 `apps/api/src/generated/` and is gitignored; run `pnpm db:generate` after editing the schema. The brand guard reads terms
 from `BRAND_GUARD_TERMS` or a gitignored `.brand-guard-terms` file and skips with a warning locally when neither exists.
+
+## Deployment status
+
+Deployed. The Next.js client runs on Vercel at https://health-capital-ai-poc.vercel.app; the Fastify API and its
+managed PostgreSQL run on Railway at https://health-capital-api.up.railway.app, built from `apps/api/Dockerfile`.
+`GET /ready` returns 200. Verified in production: migrations applied, synthetic seed loaded, member sign-in,
+deterministic eligibility end to end, the employer-admin view with its privacy boundary intact, support privileged
+lookup, the support audit trail with reason code and case reference, and cross-origin client-to-API calls.
+Gemini there is optional and its free-tier quota is exhausted, so what production currently demonstrates is the
+graceful assistant-unavailable fallback; a successful live model response in production is NOT verified and must
+not be claimed. Never write credentials, secrets or connection strings into the repository. See
+docs/adr/0006-demo-hosting-railway-vercel.md. render.yaml stays as an unexercised alternative; apps/web/vercel.json,
+.github/workflows/demo-deploy.yml and pnpm demo:reseed remain the configured deployment path.
 
 ## Module map
 

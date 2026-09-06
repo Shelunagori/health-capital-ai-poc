@@ -1,7 +1,7 @@
 # ADR-0005: Hosting the demonstration
 
 Date: 2026-09-06
-Status: Accepted, not yet exercised
+Status: Superseded by [ADR-0006](0006-demo-hosting-railway-vercel.md)
 
 ## Context
 
