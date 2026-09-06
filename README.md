@@ -57,6 +57,12 @@ The seed stores only an Argon2id hash of `SEED_USER_PASSWORD`. No plaintext pass
 the database, to source, or to the seed output. Seeded sign-in identities are listed when the seed
 runs, all under `example.test`.
 
+One repository setting is needed before continuous integration is fully green. The brand guard reads
+the terms it rejects from a repository variable rather than from a committed file, because a list of
+forbidden terms in the repository would put those terms in the repository. Set `BRAND_GUARD_TERMS`
+under Settings, then Secrets and variables, then Actions, then Variables. Until it is set that one
+job fails on purpose; everything else still runs and reports.
+
 Quality gates:
 
 ```bash

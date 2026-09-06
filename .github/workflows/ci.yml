@@ -37,7 +37,10 @@ jobs:
       - name: Scan tracked files and event commit messages
         env:
           CI: 'true'
-          # Repository variable holding the comma-separated forbidden terms. Kept outside the repository.
+          # Repository variable holding the comma-separated forbidden terms. Deliberately not
+          # committed: putting the list in the repository would put the terms in the repository.
+          # Set it under Settings, Secrets and variables, Actions, Variables. Without it this job
+          # fails rather than passing quietly, because a guard that skips itself is not a guard.
           BRAND_GUARD_TERMS: ${{ vars.BRAND_GUARD_TERMS }}
         run: node scripts/brand-guard.mjs --commits "${{ steps.range.outputs.range }}"
 
@@ -57,7 +60,9 @@ jobs:
   build-and-test:
     name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
-    needs: [brand-guard]
+    # Deliberately independent of the brand guard. The guard fails when its term list is not
+    # configured, which is the right behaviour for the guard and the wrong reason to stop reporting
+    # whether the code works. Both appear separately, and both must pass.
     env:
       APP_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/health_capital_ci?schema=public

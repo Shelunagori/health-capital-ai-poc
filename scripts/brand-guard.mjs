@@ -145,7 +145,12 @@ function main() {
     const msg =
       'brand-guard: no forbidden-term list found (BRAND_GUARD_TERMS or .brand-guard-terms).';
     if (inCi) {
-      process.stderr.write(`${msg} Refusing to pass silently in CI.\n`);
+      process.stderr.write(
+        `${msg}\n` +
+          'A guard that skips itself is not a guard, so this fails rather than passing quietly.\n' +
+          'Set the repository variable BRAND_GUARD_TERMS to the comma-separated terms to reject.\n' +
+          'Settings, then Secrets and variables, then Actions, then Variables.\n',
+      );
       process.exit(2);
     }
     process.stdout.write(`${msg} Skipping (local run).\n`);
