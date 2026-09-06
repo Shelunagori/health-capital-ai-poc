@@ -143,7 +143,7 @@ export async function buildApp({
     provider ??
     (config.geminiApiKey === undefined
       ? new NullProvider()
-      : new GeminiProvider(config.geminiApiKey));
+      : new GeminiProvider(config.geminiApiKey, config.geminiModel));
 
   registerEligibilityRoutes(app, {
     db,

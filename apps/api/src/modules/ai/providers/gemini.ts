@@ -1,4 +1,4 @@
-import { GoogleGenAI, type FunctionDeclaration } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel, type FunctionDeclaration } from '@google/genai';
 import { AiUnavailableError, withTimeout } from '../errors.js';
 import type {
   AIProvider,
@@ -16,7 +16,25 @@ import type {
  * place that text should not end up. Failures become `AiUnavailableError`, which carries only the
  * provider name and the kind of failure, so a provider message cannot smuggle a payload into a log.
  */
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+/**
+ * The model used when configuration names none. Kept beside the provider so there is one literal
+ * to change: `platform/config.ts` validates an override but does not restate this value, which
+ * would also invert the dependency direction between platform and the modules above it.
+ */
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.6-flash';
+
+/**
+ * How much the model is asked to deliberate before answering.
+ *
+ * Both stages are bounded work: pick a category and an amount from a sentence, or restate a
+ * decision in plain words. Neither is open-ended reasoning, because the reasoning that matters
+ * already happened in the rules engine before the model is asked anything.
+ *
+ * Left unset, a reasoning model can spend most of a request thinking and overrun the ten-second
+ * budget, which turns a working answer into a timeout and a fallback. LOW keeps these calls inside
+ * it. MEDIUM or HIGH would buy deliberation that neither task has any use for.
+ */
+const THINKING = { thinkingLevel: ThinkingLevel.LOW } as const;
 
 export class GeminiProvider implements AIProvider {
   readonly name = 'gemini';
@@ -62,6 +80,7 @@ export class GeminiProvider implements AIProvider {
           systemInstruction: request.systemInstruction,
           tools: [{ functionDeclarations }],
           temperature: 0,
+          thinkingConfig: THINKING,
         },
       }),
       this.name,
@@ -75,7 +94,10 @@ export class GeminiProvider implements AIProvider {
       args: call.args,
     }));
 
-    return { text: response.text ?? null, toolCalls };
+    // Reading the text of a response that carries function calls makes the SDK warn, and the text
+    // is not used in that case: the tool results drive the next turn. Only read it when the model
+    // answered with words instead of a call.
+    return { text: toolCalls.length > 0 ? null : (response.text ?? null), toolCalls };
   }
 
   async generateStructured(request: StructuredRequest): Promise<unknown> {
@@ -89,6 +111,7 @@ export class GeminiProvider implements AIProvider {
           responseMimeType: 'application/json',
           responseJsonSchema: request.responseSchema,
           temperature: 0,
+          thinkingConfig: THINKING,
         },
       }),
       this.name,

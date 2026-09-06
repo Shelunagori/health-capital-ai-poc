@@ -116,6 +116,21 @@ describe('the real provider', () => {
     expect(provider.available).toBe(true);
     expect(JSON.stringify({ name: provider.name, model: provider.model })).not.toContain('a-key');
   });
+
+  it('defaults to the current model id', () => {
+    // Named explicitly rather than compared to the constant, so changing the constant has to be
+    // deliberate: an account that could not use the previous default is how this broke.
+    expect(DEFAULT_GEMINI_MODEL).toBe('gemini-3.6-flash');
+    expect(new GeminiProvider('a-key').model).toBe('gemini-3.6-flash');
+  });
+
+  it('uses a configured model instead of the default', () => {
+    expect(new GeminiProvider('a-key', 'gemini-3.6-pro').model).toBe('gemini-3.6-pro');
+  });
+
+  it('falls back to the default when configuration names none', () => {
+    expect(new GeminiProvider('a-key', undefined).model).toBe(DEFAULT_GEMINI_MODEL);
+  });
 });
 
 describe('prompt templates', () => {

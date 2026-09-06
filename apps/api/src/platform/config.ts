@@ -52,6 +52,8 @@ const RawEnvSchema = z.object({
       'JWT_SECRET must be at least 32 bytes',
     ),
   GEMINI_API_KEY: z.string().optional(),
+  /** Overrides the provider's own default model id. Optional: unset means use that default. */
+  GEMINI_MODEL: z.string().trim().min(1).optional(),
   BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).max(1_048_576).default(65_536),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(60_000),
   /** Ceiling for any single client address across all routes. */
@@ -77,6 +79,8 @@ export interface AppConfig {
   readonly databaseUrl: string;
   readonly jwtSecret: string;
   readonly geminiApiKey: string | undefined;
+  /** Undefined means the AI provider applies its own default. */
+  readonly geminiModel: string | undefined;
   readonly bodyLimitBytes: number;
   readonly rateLimitWindowMs: number;
   readonly rateLimitGlobalMax: number;
@@ -191,6 +195,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: raw.DATABASE_URL,
     jwtSecret: raw.JWT_SECRET,
     geminiApiKey: raw.GEMINI_API_KEY,
+    geminiModel: raw.GEMINI_MODEL,
     bodyLimitBytes: raw.BODY_LIMIT_BYTES,
     rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
     rateLimitGlobalMax: raw.RATE_LIMIT_GLOBAL_MAX,

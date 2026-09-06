@@ -261,3 +261,78 @@ describe('asking for guidance', () => {
     });
   });
 });
+
+/**
+ * With no key configured the platform selects the null provider, which declines every call. This
+ * builds the application without supplying a scripted provider, so the real selection runs.
+ */
+describe('with no AI provider configured', () => {
+  let harness: TestApp;
+  let db: PrismaClient;
+  let sarah: { authorization: string };
+
+  beforeAll(async () => {
+    db = createTestDb();
+    // No provider passed, and the harness sets no GEMINI_API_KEY.
+    harness = await createTestApp({ db });
+    sarah = await authHeader(harness.app, SEEDED.memberSarah);
+  });
+
+  afterAll(async () => {
+    await harness.close();
+    await db.$disconnect();
+  });
+
+  it('reports the assistant as unavailable rather than failing the request', async () => {
+    const res = await harness.app.inject({
+      method: 'POST',
+      url: '/me/guidance/ask',
+      headers: sarah,
+      payload: { question: 'can I claim physio' },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{ decision: null; explanation: string; aiStatus: string }>();
+    expect(body.aiStatus).toBe('unavailable');
+    expect(body.decision).toBeNull();
+    expect(body.explanation).toMatch(/still check an expense using the form/i);
+  });
+
+  it('leaves the deterministic path working, which needs no provider at all', async () => {
+    const res = await harness.app.inject({
+      method: 'POST',
+      url: '/me/eligibility/evaluate',
+      headers: sarah,
+      payload: {
+        treatmentCategory: 'PHYSICAL_THERAPY',
+        expenseAmountCents: 18_000,
+        serviceDate: '2026-05-04',
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json<{
+      decision: { outcome: string; careRequestId: string };
+      explanationSource: string;
+    }>();
+    expect(body.decision.outcome).toBe('ELIGIBLE');
+    expect(body.explanationSource).toBe('template');
+
+    await db.$executeRawUnsafe('TRUNCATE TABLE "EligibilityDecision" CASCADE');
+    await db.careRequest.deleteMany({ where: { id: body.decision.careRequestId } });
+  });
+
+  it('makes no call to any provider, so nothing is recorded against one', async () => {
+    const res = await harness.app.inject({
+      method: 'POST',
+      url: '/me/guidance/ask',
+      headers: sarah,
+      payload: { question: 'anything at all' },
+    });
+
+    const calls = await db.auditEvent.count({
+      where: { traceId: res.headers['x-trace-id'] as string, action: 'AI_CALL' },
+    });
+    expect(calls).toBe(0);
+  });
+});

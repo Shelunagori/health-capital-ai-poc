@@ -295,3 +295,53 @@ describe('demo deployment requirements are enforced at startup', () => {
     expect(problemsOf(deployed({ GEMINI_API_KEY: undefined }))).toEqual([]);
   });
 });
+
+/**
+ * The model id is configuration, not a constant compiled into the build. It became so after a
+ * provider stopped accepting the previous default for new accounts, which no amount of redeploying
+ * could work around while the value was fixed in code.
+ */
+describe('the AI model is configurable and the provider stays optional', () => {
+  const withGemini = (overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv => ({
+    ...baseEnv,
+    APP_ENV: 'local',
+    ...overrides,
+  });
+
+  it('carries no model when none is configured, leaving the provider to choose', () => {
+    expect(loadConfig(withGemini()).geminiModel).toBeUndefined();
+  });
+
+  it('carries the configured model', () => {
+    expect(loadConfig(withGemini({ GEMINI_MODEL: 'gemini-3.6-pro' })).geminiModel).toBe(
+      'gemini-3.6-pro',
+    );
+  });
+
+  it('trims surrounding whitespace, which a copied value often carries', () => {
+    expect(loadConfig(withGemini({ GEMINI_MODEL: '  gemini-3.6-flash  ' })).geminiModel).toBe(
+      'gemini-3.6-flash',
+    );
+  });
+
+  it('refuses an empty model rather than sending one to the provider', () => {
+    for (const value of ['', '   ']) {
+      expect(problemsOf(withGemini({ GEMINI_MODEL: value })).join('\n'), value).toContain(
+        'GEMINI_MODEL',
+      );
+    }
+  });
+
+  it('needs no key, and no model, to start', () => {
+    // Without a key the platform runs on the null provider and everything else still works.
+    const config = loadConfig(withGemini());
+    expect(config.geminiApiKey).toBeUndefined();
+    expect(problemsOf(withGemini())).toEqual([]);
+  });
+
+  it('allows a model to be named even when no key is set yet', () => {
+    const config = loadConfig(withGemini({ GEMINI_MODEL: 'gemini-3.6-flash' }));
+    expect(config.geminiApiKey).toBeUndefined();
+    expect(config.geminiModel).toBe('gemini-3.6-flash');
+  });
+});
