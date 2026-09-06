@@ -14,6 +14,16 @@ export const viewport = {
   initialScale: 1,
 };
 
+/**
+ * Rendered per request, because the content security policy carries a per-request nonce.
+ *
+ * A prerendered page is built once, so its script tags would carry whatever nonce existed at build
+ * time, or none at all, while the middleware sends a fresh one with every response. The two would
+ * never match and every script would be blocked. Nothing is lost by rendering per request: every
+ * component here is a client component and the server sends little more than the shell.
+ */
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({ children }: { children: ReactNode }): JSX.Element {
   return (
     <html lang="en">

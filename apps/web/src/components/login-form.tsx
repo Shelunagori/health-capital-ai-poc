@@ -9,6 +9,12 @@ import { useSession } from '@/lib/session';
  *
  * Every failure shows the same message, because the server gives the same answer whether the
  * address is unknown or the password is wrong, and the page should not undo that.
+ *
+ * The form declares `method="post"`. When it is hydrated the submit handler prevents the default
+ * and sends JSON to the API, so the method is never used. It matters when hydration has not
+ * happened: a form with no method defaults to GET, and a browser submitting this one would put the
+ * password in the query string, the address bar and the history. Declaring POST means the worst
+ * case is a discarded request body rather than a credential written into the URL.
  */
 export function LoginForm(): JSX.Element {
   const { signIn } = useSession();
@@ -38,10 +44,20 @@ export function LoginForm(): JSX.Element {
   return (
     <form
       className="form"
+      // Never used while hydrated; the guard against a password reaching the URL if it is not.
+      method="post"
+      action="/"
       onSubmit={(event) => void onSubmit(event)}
       aria-labelledby="signin-heading"
     >
       <h2 id="signin-heading">Sign in</h2>
+
+      <noscript>
+        <p className="error">
+          Signing in needs JavaScript. Without it your details cannot be sent securely, so this form
+          will not work.
+        </p>
+      </noscript>
 
       <label className="field">
         <span className="field__label">Email address</span>
