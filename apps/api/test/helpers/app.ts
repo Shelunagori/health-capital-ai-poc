@@ -7,6 +7,7 @@ import { createDb } from '../../src/platform/db.js';
 import type { Db } from '../../src/platform/db.js';
 import { testDatabaseUrl } from './db.js';
 import type { ScenarioController } from '../../src/modules/integrations/index.js';
+import type { AIProvider } from '../../src/modules/ai/index.js';
 
 /** A secret of the required length, generated per run so nothing credential-shaped is committed. */
 export const TEST_JWT_SECRET = `${crypto.randomUUID()}${crypto.randomUUID()}`;
@@ -22,6 +23,8 @@ export interface TestAppOptions {
   routes?: (app: FastifyInstance) => void;
   /** Drives the synthetic external systems, so a test can put one into an outage. */
   scenarios?: ScenarioController;
+  /** A scripted AI provider, so a test never calls a real one. */
+  provider?: AIProvider;
 }
 
 export interface TestApp {
@@ -54,12 +57,14 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<TestA
     // Generous by default so a busy test file is not throttled; individual tests narrow it.
     RATE_LIMIT_GLOBAL_MAX: '10000',
     RATE_LIMIT_LOGIN_MAX: '10000',
+    RATE_LIMIT_GUIDANCE_MAX: '10000',
     ...options.env,
   });
 
   const db = options.db ?? createDb({ databaseUrl: config.databaseUrl });
   const app = await buildApp({
     ...(options.scenarios === undefined ? {} : { scenarios: options.scenarios }),
+    ...(options.provider === undefined ? {} : { provider: options.provider }),
     config,
     logger: createLogger({ level: 'info', destination: logs.sink }),
     db,

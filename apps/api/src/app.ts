@@ -18,6 +18,8 @@ import { AuditService, registerAuditRoutes } from './modules/audit/index.js';
 import { AccessGuard } from './modules/authorization/index.js';
 import { BenefitsService } from './modules/benefits/index.js';
 import { registerEligibilityRoutes } from './modules/eligibility/index.js';
+import { registerGuidanceRoutes } from './modules/guidance/index.js';
+import { GeminiProvider, NullProvider, type AIProvider } from './modules/ai/index.js';
 import {
   ScenarioController,
   SyntheticBenefitsAdministratorAdapter,
@@ -33,6 +35,8 @@ export interface BuildAppOptions {
   db: Db;
   /** Lets a test drive the synthetic external systems without rebuilding the app. */
   scenarios?: ScenarioController;
+  /** Overrides the AI provider, so a test can script one instead of calling a real service. */
+  provider?: AIProvider;
 }
 
 declare module 'fastify' {
@@ -53,6 +57,7 @@ export async function buildApp({
   logger,
   db,
   scenarios,
+  provider,
 }: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     loggerInstance: logger,
@@ -132,6 +137,14 @@ export async function buildApp({
   });
   registerMemberRoutes(app, new MemberRepository(db), guard);
   registerAuditRoutes(app, db);
+  // With no key configured the null provider declines every call, and everything that does not
+  // need a model keeps working.
+  const aiProvider: AIProvider =
+    provider ??
+    (config.geminiApiKey === undefined
+      ? new NullProvider()
+      : new GeminiProvider(config.geminiApiKey));
+
   registerEligibilityRoutes(app, {
     db,
     benefits,
@@ -139,6 +152,16 @@ export async function buildApp({
     audit,
     auditRecorder: audit,
     guard,
+  });
+  registerGuidanceRoutes(app, {
+    db,
+    benefits,
+    adapters,
+    audit,
+    guard,
+    provider: aiProvider,
+    rateLimitMax: config.rateLimitGuidanceMax,
+    rateLimitWindowMs: config.rateLimitWindowMs,
   });
 
   return app;

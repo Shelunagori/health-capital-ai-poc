@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export * from './audit.js';
 export * from './eligibility.js';
+export * from './guidance.js';
 export * from './auth.js';
 export * from './members.js';
 

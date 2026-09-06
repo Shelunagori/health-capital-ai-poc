@@ -58,6 +58,8 @@ const RawEnvSchema = z.object({
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().min(1).default(300),
   /** Login attempts per window for one client address and submitted address. */
   RATE_LIMIT_LOGIN_MAX: z.coerce.number().int().min(1).default(5),
+  /** Guidance calls an external model, so it is limited more tightly than ordinary reads. */
+  RATE_LIMIT_GUIDANCE_MAX: z.coerce.number().int().min(1).default(20),
   // Synthetic external-system behaviour, for demonstrating what happens during an outage.
   INTEGRATION_SCENARIO_EMPLOYER: ScenarioName.default('normal'),
   INTEGRATION_SCENARIO_BENEFITS: ScenarioName.default('normal'),
@@ -79,6 +81,7 @@ export interface AppConfig {
   readonly rateLimitWindowMs: number;
   readonly rateLimitGlobalMax: number;
   readonly rateLimitLoginMax: number;
+  readonly rateLimitGuidanceMax: number;
   readonly integrationScenarios: {
     readonly employerSystem: ScenarioName;
     readonly benefitsAdministrator: ScenarioName;
@@ -192,6 +195,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
     rateLimitGlobalMax: raw.RATE_LIMIT_GLOBAL_MAX,
     rateLimitLoginMax: raw.RATE_LIMIT_LOGIN_MAX,
+    rateLimitGuidanceMax: raw.RATE_LIMIT_GUIDANCE_MAX,
     integrationScenarios: {
       employerSystem: raw.INTEGRATION_SCENARIO_EMPLOYER,
       benefitsAdministrator: raw.INTEGRATION_SCENARIO_BENEFITS,

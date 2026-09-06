@@ -8,7 +8,7 @@ import type { BenefitsService } from '../benefits/index.js';
 import { AdapterFailure, BALANCE_TOLERANCE_CENTS, type Adapters } from '../integrations/index.js';
 import { MissingReason, missing, present, type EligibilityInputs, type Input } from './inputs.js';
 import { evaluate, type EligibilityResult } from './rules.js';
-import { buildSnapshot } from './snapshot.js';
+import { buildSnapshot, type DecisionSnapshot } from './snapshot.js';
 
 /**
  * Turns a member's request into a decision: gather the facts, hand them to the pure rules engine,
@@ -188,9 +188,11 @@ export class EligibilityService {
    * Re-evaluating creates a new care request and a new decision. Nothing is ever updated: the
    * database refuses it, and so does this code.
    */
-  async evaluateAndStore(
-    command: EvaluateCommand,
-  ): Promise<{ decision: EligibilityDecisionDto; result: EligibilityResult }> {
+  async evaluateAndStore(command: EvaluateCommand): Promise<{
+    decision: EligibilityDecisionDto;
+    result: EligibilityResult;
+    snapshot: DecisionSnapshot;
+  }> {
     const inputs = await this.assembleInputs(command);
     const result = evaluate(inputs);
     const snapshot = buildSnapshot(inputs, result);
@@ -216,6 +218,7 @@ export class EligibilityService {
           evaluatedAt: new Date().toISOString(),
         },
         result,
+        snapshot,
       };
     }
 
@@ -280,6 +283,7 @@ export class EligibilityService {
         evaluatedAt: stored.decision.evaluatedAt.toISOString(),
       },
       result,
+      snapshot,
     };
   }
 }
