@@ -228,4 +228,57 @@ describe('the support view requires a reason and a case reference', () => {
     expect(table).not.toHaveTextContent(MEMBER_ID);
     expect(table).not.toHaveTextContent(/DENTAL|cents|€/);
   });
+
+  describe('the audit columns say what they actually contain', () => {
+    /** Renders the desk, loads the trail, and reads the headers and the first row in column order. */
+    const auditTable = async (): Promise<{ headers: string[]; firstRow: string[] }> => {
+      render(withSession(<SupportView />));
+      await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+      const table = await screen.findByTestId('audit-table');
+      const row = table.querySelectorAll('tbody tr')[0];
+      return {
+        headers: [...table.querySelectorAll('thead th')].map((th) => th.textContent ?? ''),
+        firstRow: [...(row?.children ?? [])].map((cell) => cell.textContent ?? ''),
+      };
+    };
+
+    it('keeps the reason and the case reference in separate columns', async () => {
+      const { headers } = await auditTable();
+      expect(headers).toEqual(['When', 'Action', 'Outcome', 'Role', 'Reason', 'Case reference']);
+    });
+
+    it('renders the reason code under Reason, not the case reference', async () => {
+      // The bug this replaces: the Reason header sat above the case reference.
+      const { firstRow } = await auditTable();
+      expect(firstRow[4]).toBe('benefits dispute');
+      expect(firstRow[4]).not.toBe('CASE-0042');
+    });
+
+    it('renders the case reference under Case reference', async () => {
+      const { firstRow } = await auditTable();
+      expect(firstRow[5]).toBe('CASE-0042');
+    });
+
+    it('humanises the reason code the same way the picker does', async () => {
+      render(withSession(<SupportView />));
+      const options = [...(await screen.findByLabelText('Reason')).querySelectorAll('option')];
+      expect(options.map((option) => option.textContent)).toContain('benefits dispute');
+    });
+
+    it('shows a dash when either is absent', async () => {
+      vi.spyOn(api, 'auditEvents').mockResolvedValue({
+        events: [{ ...auditEvent, reasonCode: null, caseRef: null }],
+        count: 1,
+      });
+      const { firstRow } = await auditTable();
+      expect(firstRow[4]).toBe('—');
+      expect(firstRow[5]).toBe('—');
+    });
+
+    it('adds no other column, so nothing else about the event is shown', async () => {
+      const { firstRow } = await auditTable();
+      expect(firstRow).toHaveLength(6);
+      expect(firstRow.join(' ')).not.toMatch(/DENTAL|cents|€|[0-9a-f]{8}-[0-9a-f]{4}/);
+    });
+  });
 });

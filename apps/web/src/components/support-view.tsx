@@ -8,7 +8,7 @@ import type {
   SupportAuditEventDto,
 } from '@health-capital/contracts';
 import { ApiError, api } from '@/lib/api-client';
-import { formatDate } from '@/lib/format';
+import { formatDate, humaniseCode } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 const REASON_CODES = [
@@ -157,7 +157,7 @@ export function SupportView(): JSX.Element {
             >
               {REASON_CODES.map((code) => (
                 <option key={code} value={code}>
-                  {code.toLowerCase().replace(/_/g, ' ')}
+                  {humaniseCode(code)}
                 </option>
               ))}
             </select>
@@ -225,6 +225,7 @@ export function SupportView(): JSX.Element {
                 <th scope="col">Outcome</th>
                 <th scope="col">Role</th>
                 <th scope="col">Reason</th>
+                <th scope="col">Case reference</th>
               </tr>
             </thead>
             <tbody>
@@ -234,6 +235,7 @@ export function SupportView(): JSX.Element {
                   <th scope="row">{event.action}</th>
                   <td>{event.outcome}</td>
                   <td>{event.actorRole ?? '—'}</td>
+                  <td>{humaniseCode(event.reasonCode)}</td>
                   <td>{event.caseRef ?? '—'}</td>
                 </tr>
               ))}

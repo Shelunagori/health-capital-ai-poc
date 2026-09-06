@@ -13,6 +13,15 @@ export function formatDate(iso: string): string {
   return new Intl.DateTimeFormat('en-IE', { dateStyle: 'medium' }).format(date);
 }
 
+/**
+ * Turns a coded value into readable words without inventing new wording for it.
+ * Used wherever a reason code is shown, so the picker and the audit trail always agree.
+ */
+export function humaniseCode(code: string | null | undefined): string {
+  if (code === null || code === undefined || code === '') return '—';
+  return code.toLowerCase().replace(/_/g, ' ');
+}
+
 /** Turns an enum value into something readable without inventing new wording for it. */
 export function humaniseCategory(category: string): string {
   return category
