@@ -1,0 +1,100 @@
+# CI / build validation. This is not continuous delivery; the demo deploy is a separate manual workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  brand-guard:
+    name: Brand neutrality guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Resolve commit range introduced by this event
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "range=${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ] || [ -z "${{ github.event.before }}" ]; then
+            echo "range=${{ github.sha }} -1" >> "$GITHUB_OUTPUT"
+          else
+            echo "range=${{ github.event.before }}...${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Scan tracked files and event commit messages
+        env:
+          CI: 'true'
+          # Repository variable holding the comma-separated forbidden terms. Kept outside the repository.
+          BRAND_GUARD_TERMS: ${{ vars.BRAND_GUARD_TERMS }}
+        run: node scripts/brand-guard.mjs --commits "${{ steps.range.outputs.range }}"
+
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Required only for organisation-owned repositories.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  build-and-test:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    needs: [brand-guard]
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/health_capital_ci?schema=public
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: health_capital_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      # `pnpm install` also runs `prisma generate` through the api package's postinstall.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @health-capital/api exec prisma validate
+      - run: pnpm lint
+      - run: pnpm format
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Apply migrations and load synthetic seed data
+        # The seed password is generated per run: no plaintext credential is stored anywhere.
+        run: |
+          SEED_USER_PASSWORD="$(openssl rand -base64 24)"
+          export SEED_USER_PASSWORD
+          pnpm db:deploy
+          pnpm db:seed
+          pnpm test:integration
+      - run: pnpm build

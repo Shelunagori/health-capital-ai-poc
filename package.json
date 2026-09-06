@@ -1,0 +1,36 @@
+{
+  "name": "health-capital-ai-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent synthetic-data proof of concept for privacy-aware AI benefits guidance with deterministic eligibility.",
+  "license": "MIT",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @health-capital/api dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "test": "pnpm -r test",
+    "test:unit": "pnpm --filter @health-capital/api test:unit",
+    "brand-guard": "node scripts/brand-guard.mjs",
+    "test:integration": "pnpm --filter @health-capital/api test:integration",
+    "db:migrate": "pnpm --filter @health-capital/api db:migrate",
+    "db:deploy": "pnpm --filter @health-capital/api db:deploy",
+    "db:seed": "pnpm --filter @health-capital/api db:seed",
+    "db:reset": "pnpm --filter @health-capital/api db:reset"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0"
+  }
+}

@@ -1,0 +1,301 @@
+// Domain model for the Health Capital AI POC. Synthetic data only.
+//
+// Conventions:
+//  - Identifiers are UUIDs. Money is integer cents, always positive; the entry type carries the sign.
+//  - `externalRef` columns are opaque keys used toward synthetic external systems. They are INTERNAL
+//    data and never reach an AI provider.
+//  - Member is a portable person identity. Employer and plan relationships live on BenefitEnrollment
+//    so they can carry status and effective dates.
+//  - Every field here must have an entry in src/modules/classification/registry.ts; a test enforces it.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Prisma 7 takes the connection URL from prisma.config.ts (for the CLI) and from the driver
+// adapter passed to the PrismaClient constructor (at runtime), never from this file.
+datasource db {
+  provider = "postgresql"
+}
+
+/// One closed category vocabulary, shared by CareRequest.treatmentCategory and
+/// LedgerEntry.benefitCategory so year-to-date spend can be matched against a request.
+enum BenefitCategory {
+  PHYSICAL_THERAPY
+  DENTAL
+  VISION
+  MENTAL_HEALTH
+  PRESCRIPTION
+  COSMETIC
+  GYM_MEMBERSHIP
+  OTHER
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
+  TERMINATED
+}
+
+enum LedgerEntryType {
+  CONTRIBUTION
+  DEBIT
+  ADJUSTMENT
+}
+
+enum UserRole {
+  MEMBER
+  EMPLOYER_ADMIN
+  SUPPORT
+}
+
+enum EligibilityOutcome {
+  ELIGIBLE
+  PARTIALLY_ELIGIBLE
+  INELIGIBLE
+  UNDETERMINED
+}
+
+/// Who produced a decision. Deliberately single-valued: only deterministic rules decide eligibility.
+enum DecisionAuthority {
+  RULES_ENGINE
+}
+
+enum AuditAction {
+  AUTH_LOGIN_SUCCEEDED
+  AUTH_LOGIN_FAILED
+  AUTHZ_DENIED
+  PRIVILEGED_READ
+  ELIGIBILITY_EVALUATED
+  ADAPTER_CALLED
+  AI_CALL
+  TOOL_CALL
+  AI_GUARD_TRIGGERED
+}
+
+enum AuditOutcome {
+  ALLOW
+  DENY
+  SUCCESS
+  FAILURE
+}
+
+/// Closed reason vocabulary for support privileged reads. Replaces free-text justification.
+enum SupportReasonCode {
+  MEMBER_SUPPORT_TICKET
+  BENEFITS_DISPUTE
+  DATA_QUALITY_INVESTIGATION
+  FRAUD_REVIEW
+  REGULATORY_REQUEST
+}
+
+model Employer {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  externalRef String   @unique
+  createdAt   DateTime @default(now())
+
+  plans       Plan[]
+  enrollments BenefitEnrollment[]
+  users       User[]
+}
+
+model Plan {
+  id                String   @id @default(uuid()) @db.Uuid
+  employerId        String   @db.Uuid
+  name              String
+  planYearStart     DateTime @db.Date
+  planYearEnd       DateTime @db.Date
+  /// Coverage rules as data: [{ category, covered, annualLimitCents?, substantiation, ruleRef }].
+  /// Rule *logic* is versioned code; only these parameters live in the database.
+  coverageRules     Json
+  planConfigVersion Int      @default(1)
+  planConfigAsOf    DateTime
+  planExternalRef   String   @unique
+  createdAt         DateTime @default(now())
+
+  employer    Employer            @relation(fields: [employerId], references: [id], onDelete: Restrict)
+  enrollments BenefitEnrollment[]
+
+  @@index([employerId])
+}
+
+/// Portable person identity. Holds no employer, plan or login data.
+model Member {
+  id          String   @id @default(uuid()) @db.Uuid
+  externalRef String   @unique
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime @db.Date
+  addressLine String
+  city        String
+  postalCode  String
+  createdAt   DateTime @default(now())
+
+  enrollments  BenefitEnrollment[]
+  careRequests CareRequest[]
+  decisions    EligibilityDecision[]
+  user         User?
+}
+
+/// A member's relationship with one employer plan, with status and effective dates.
+/// Tenancy and eligibility both resolve through this model, never through Member.
+model BenefitEnrollment {
+  id                    String           @id @default(uuid()) @db.Uuid
+  memberId              String           @db.Uuid
+  employerId            String           @db.Uuid
+  planId                String           @db.Uuid
+  /// Employer-scoped payroll identifier.
+  employeeId            String
+  status                EnrollmentStatus
+  effectiveFrom         DateTime         @db.Date
+  effectiveTo           DateTime?        @db.Date
+  /// Opaque, employer-scoped key used by EmployerSystemAdapter to confirm this enrollment.
+  enrollmentExternalRef String           @unique
+  /// When the employer system last confirmed this enrollment.
+  sourceAsOf            DateTime
+  createdAt             DateTime         @default(now())
+
+  member       Member                @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  employer     Employer              @relation(fields: [employerId], references: [id], onDelete: Restrict)
+  plan         Plan                  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  account      HealthCapitalAccount?
+  careRequests CareRequest[]
+  decisions    EligibilityDecision[]
+
+  @@unique([employerId, employeeId])
+  @@index([memberId, effectiveFrom])
+  @@index([planId])
+}
+
+/// Employer-funded health capital, held per enrollment so terminated enrollments do not
+/// carry balances into a new employer relationship.
+model HealthCapitalAccount {
+  id             String   @id @default(uuid()) @db.Uuid
+  enrollmentId   String   @unique @db.Uuid
+  currency       String   @db.Char(3)
+  /// Opaque key used by CardSystemAdapter.
+  cardExternalRef String  @unique
+  createdAt      DateTime @default(now())
+
+  enrollment BenefitEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  entries    LedgerEntry[]
+}
+
+/// Append-oriented money movement. Amounts are positive magnitudes.
+/// Balance      = CONTRIBUTION - DEBIT + ADJUSTMENT
+/// YTD category = DEBIT(category) - ADJUSTMENT(category)
+model LedgerEntry {
+  id              String           @id @default(uuid()) @db.Uuid
+  accountId       String           @db.Uuid
+  type            LedgerEntryType
+  amountCents     Int
+  occurredAt      DateTime
+  /// Required for DEBIT (enforced by a check constraint) so category spend is computable.
+  benefitCategory BenefitCategory?
+  careRequestId   String?          @db.Uuid
+  description     String
+  createdAt       DateTime         @default(now())
+
+  account     HealthCapitalAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  careRequest CareRequest?         @relation(fields: [careRequestId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, occurredAt])
+  @@index([accountId, benefitCategory, occurredAt])
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  /// Argon2id hash only. Never a reversible encryption of a password, never returned by any DTO.
+  passwordHash String
+  role         UserRole
+  memberId     String?  @unique @db.Uuid
+  employerId   String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  member   Member?   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  employer Employer? @relation(fields: [employerId], references: [id], onDelete: Restrict)
+
+  @@index([employerId])
+}
+
+/// The structured expense a member asks about. Free-text questions are never stored, and no
+/// provider identity is persisted because no deterministic rule consumes it.
+model CareRequest {
+  id                 String          @id @default(uuid()) @db.Uuid
+  memberId           String          @db.Uuid
+  enrollmentId       String          @db.Uuid
+  treatmentCategory  BenefitCategory
+  expenseAmountCents Int
+  serviceDate        DateTime        @db.Date
+  createdAt          DateTime        @default(now())
+
+  member       Member               @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  enrollment   BenefitEnrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  decision     EligibilityDecision?
+  ledgerEntries LedgerEntry[]
+
+  @@index([memberId, serviceDate])
+}
+
+/// Immutable output of the deterministic rules engine. Append-only: a database trigger rejects
+/// UPDATE and DELETE. `inputsSnapshot` holds the minimized inputs needed to replay the decision;
+/// it contains no names, date of birth, address or employee identifier, but it is still PHI/FIN.
+model EligibilityDecision {
+  id                 String             @id @default(uuid()) @db.Uuid
+  careRequestId      String             @unique @db.Uuid
+  memberId           String             @db.Uuid
+  enrollmentId       String             @db.Uuid
+  outcome            EligibilityOutcome
+  /// Null only when the outcome is UNDETERMINED, where no amount is meaningful.
+  coveredAmountCents Int?
+  /// [{ ruleRef, code, message }]
+  reasons            Json
+  /// [ "RECEIPT_REQUIRED", ... ]
+  conditions         Json
+  /// Version of the rule code that produced this decision.
+  engineVersion      String
+  /// Version of the plan coverage parameters used.
+  planConfigVersion  Int
+  inputsSnapshot     Json
+  decidedBy          DecisionAuthority  @default(RULES_ENGINE)
+  evaluatedAt        DateTime           @default(now())
+
+  careRequest CareRequest       @relation(fields: [careRequestId], references: [id], onDelete: Restrict)
+  member      Member            @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  enrollment  BenefitEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+
+  @@index([memberId, evaluatedAt])
+}
+
+/// Append-only audit trail. A database trigger rejects UPDATE and DELETE, so append-only is
+/// enforced by the database rather than by convention. Metadata carries refs, enums, cents,
+/// versions, latencies and counts only: never free text, prompts, tool bodies or full records.
+/// `actorUserId` is intentionally not a foreign key so audit history is independent of user rows.
+model AuditEvent {
+  id                String             @id @default(uuid()) @db.Uuid
+  occurredAt        DateTime           @default(now())
+  traceId           String
+  actorUserId       String?            @db.Uuid
+  actorRole         UserRole?
+  action            AuditAction
+  resourceType      String?
+  resourceId        String?            @db.Uuid
+  outcome           AuditOutcome
+  engineVersion     String?
+  planConfigVersion Int?
+  aiProvider        String?
+  aiModel           String?
+  promptTemplateId  String?
+  promptVersion     String?
+  reasonCode        SupportReasonCode?
+  caseRef           String?
+  metadata          Json
+
+  @@index([traceId])
+  @@index([occurredAt])
+  @@index([action, occurredAt])
+  @@index([actorUserId, occurredAt])
+}
