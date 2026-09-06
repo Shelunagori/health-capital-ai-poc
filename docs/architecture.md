@@ -103,6 +103,31 @@ Invariants that need business context, such as which enrollment applies to a ser
 whether an adjustment offsets a particular debit, are left to application policy in later
 milestones. Encoding them as constraints would be brittle and would duplicate the rules engine.
 
+## Eligibility
+
+Deterministic and versioned. `assembleInputs` gathers the facts, each one either present or
+explicitly absent with a reason, and `evaluate` is a pure function over them: no database, no clock,
+no network, no model.
+
+| Rule               | What it settles                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| `ELIG-DATA-00`     | Anything still unknown, or two systems disagreeing about money, stops the evaluation |
+| `ELIG-ENROLL-01`   | A confirmed absence of enrollment, or one that is inactive or outside its period     |
+| `ELIG-PLANYEAR-02` | The date of service falls inside the plan year                                       |
+| `ELIG-CAT-03`      | The plan covers this category, quoting its own clause reference                      |
+| `ELIG-LIMIT-04`    | What the annual category limit leaves after year-to-date spend                       |
+| `ELIG-FUNDS-05`    | What the account actually holds                                                      |
+| `ELIG-COVER-06`    | The payable amount: the smallest of requested, remaining limit and available funds   |
+| `ELIG-DOC-07`      | Attaches a receipt condition without changing the answer                             |
+
+Outcomes are `ELIGIBLE`, `PARTIALLY_ELIGIBLE`, `INELIGIBLE` and `UNDETERMINED`. A confirmed absence
+of enrollment is ineligible; an unreachable, slow, stale or contradictory source is undetermined.
+See [ADR-0003](adr/0003-eligibility-outcomes-and-versioning.md).
+
+Each evaluation writes a care request, an immutable decision and an audit event in one transaction.
+Re-evaluating creates a new decision; nothing is ever updated. The decision carries a minimized
+snapshot of its inputs, sufficient to replay the same outcome later.
+
 ## Data classification
 
 `apps/api/src/modules/classification` holds one registry mapping every persisted field to a data

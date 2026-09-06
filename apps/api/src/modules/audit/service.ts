@@ -15,11 +15,22 @@ import { auditMetadataSchemas, type AuditAction, type AuditEventInput } from './
  * Writes are awaited rather than queued: for a proof of concept, an event that is worth recording
  * is worth recording before the response is sent.
  */
+/** The slice of the client an audit write needs, so a transaction can be passed in as easily as the pool. */
+export type AuditDb = Pick<Db, 'auditEvent'>;
+
 export class AuditService {
   constructor(
-    private readonly db: Db,
+    private readonly db: AuditDb,
     private readonly logger: FastifyBaseLogger,
   ) {}
+
+  /**
+   * A recorder bound to a transaction, so a domain write and its audit event commit or fail
+   * together. Without this an audit row could survive a rolled-back decision, or the reverse.
+   */
+  withClient(client: AuditDb): AuditService {
+    return new AuditService(client, this.logger);
+  }
 
   async record<A extends AuditAction>(event: AuditEventInput<A>): Promise<void> {
     const schema = auditMetadataSchemas[event.action];

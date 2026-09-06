@@ -2,7 +2,7 @@
  * Audit: an append-only record of who did what, when, and whether it was allowed.
  * The database refuses updates and deletes, so immutability does not rely on this code.
  */
-export { AuditService, type AuditRecorder } from './service.js';
+export { AuditService, type AuditDb, type AuditRecorder } from './service.js';
 export {
   AuditAction,
   AuditOutcome,

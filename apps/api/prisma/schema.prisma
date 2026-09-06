@@ -257,8 +257,8 @@ model EligibilityDecision {
   conditions         Json
   /// Version of the rule code that produced this decision.
   engineVersion      String
-  /// Version of the plan coverage parameters used.
-  planConfigVersion  Int
+  /// Version of the plan coverage parameters used. Null when the plan was never reached.
+  planConfigVersion  Int?
   inputsSnapshot     Json
   decidedBy          DecisionAuthority  @default(RULES_ENGINE)
   evaluatedAt        DateTime           @default(now())

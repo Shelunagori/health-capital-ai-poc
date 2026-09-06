@@ -17,6 +17,7 @@ import { MemberRepository, registerMemberRoutes } from './modules/members/index.
 import { AuditService, registerAuditRoutes } from './modules/audit/index.js';
 import { AccessGuard } from './modules/authorization/index.js';
 import { BenefitsService } from './modules/benefits/index.js';
+import { registerEligibilityRoutes } from './modules/eligibility/index.js';
 import {
   ScenarioController,
   SyntheticBenefitsAdministratorAdapter,
@@ -131,6 +132,14 @@ export async function buildApp({
   });
   registerMemberRoutes(app, new MemberRepository(db), guard);
   registerAuditRoutes(app, db);
+  registerEligibilityRoutes(app, {
+    db,
+    benefits,
+    adapters,
+    audit,
+    auditRecorder: audit,
+    guard,
+  });
 
   return app;
 }
