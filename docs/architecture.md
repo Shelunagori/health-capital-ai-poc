@@ -20,12 +20,12 @@ data, APIs, or proprietary architecture. No HIPAA compliance is claimed.
 
 A pnpm workspace with a modular monolith API and a thin web client.
 
-| Path                 | Role                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------- |
-| `apps/api`           | Fastify API. All business logic. Modules under `src/modules/*`, infrastructure under `src/platform/`. |
-| `apps/web`           | Next.js client (arrives in M5). Holds no secrets; every authorization decision is server-side.        |
-| `packages/contracts` | Zod request/response schemas shared by API and web.                                                   |
-| `docs/`              | Architecture, security boundaries, threat model, AI architecture, demo notes, ADRs.                   |
+| Path                 | Role                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `apps/api`           | Fastify API. All business logic. Modules under `src/modules/*`, infrastructure under `src/platform/`.             |
+| `apps/web`           | Next.js client for members, employers and support. Holds no secrets; every authorization decision is server-side. |
+| `packages/contracts` | Zod request/response schemas shared by API and web.                                                               |
+| `docs/`              | Architecture, security boundaries, threat model, AI architecture, demo notes, ADRs.                               |
 
 ## Modules and dependency direction
 
@@ -100,8 +100,8 @@ exactly one scope reference per user role. Triggers make `EligibilityDecision` a
 append-only, so immutability does not depend on application discipline.
 
 Invariants that need business context, such as which enrollment applies to a service date or
-whether an adjustment offsets a particular debit, are left to application policy in later
-milestones. Encoding them as constraints would be brittle and would duplicate the rules engine.
+whether an adjustment offsets a particular debit, live in the rules engine instead. Encoding them as
+constraints would be brittle and would duplicate what the engine already decides.
 
 ## Eligibility
 
@@ -131,8 +131,8 @@ snapshot of its inputs, sufficient to replay the same outcome later.
 ## Data classification
 
 `apps/api/src/modules/classification` holds one registry mapping every persisted field to a data
-class: PII, PHI, FIN, SECRET, INTERNAL or PUBLIC. It is consumed by logger redaction today, and by
-audit redaction, role DTOs and the AI minimizer in later milestones.
+class: PII, PHI, FIN, SECRET, INTERNAL or PUBLIC. It is consumed by logger redaction, audit
+metadata redaction, the role-specific view mappers and the AI minimizer.
 
 A test reads `schema.prisma` and fails when a field has no classification, when a registry entry
 no longer matches a field, or when a model is missing entirely. It is a test and CI gate, not a
@@ -156,15 +156,18 @@ Two details differ from the original plan text because of the tools involved.
 
 ## Milestones
 
-| Milestone    | Delivers                                                                          |
-| ------------ | --------------------------------------------------------------------------------- |
-| M0           | Workspace, platform baseline, brand guard, CI skeleton, documentation             |
-| M1 (current) | Data model, classification registry, synthetic seed                               |
-| M2           | Authentication, authorization, audit                                              |
-| M3           | Benefits, integrations, deterministic eligibility (full product value without AI) |
-| M4           | AI provider, sanitization boundary, tool calling, guidance flow                   |
-| M5           | Web client                                                                        |
-| M6           | Hardening, threat model, demo narrative                                           |
-| M7           | Lightweight public demo deployment                                                |
+| Milestone | Delivers                                                                          | State                                |
+| --------- | --------------------------------------------------------------------------------- | ------------------------------------ |
+| M0        | Workspace, platform baseline, brand guard, CI skeleton, documentation             | Complete                             |
+| M1        | Data model, classification registry, synthetic seed                               | Complete                             |
+| M2        | Authentication, authorization, audit                                              | Complete                             |
+| M3        | Benefits, integrations, deterministic eligibility (full product value without AI) | Complete                             |
+| M4        | AI provider, sanitization boundary, tool calling, guidance flow                   | Complete                             |
+| M5        | Web client                                                                        | Complete                             |
+| M6        | Hardening, threat model, demo narrative                                           | Complete                             |
+| M7        | Lightweight public demo deployment                                                | Configuration complete, not deployed |
+
+M7 is configuration and documentation only. Nothing has been deployed, because no hosting account
+was available, and no live environment exists.
 
 Decisions are recorded in `docs/adr/`.

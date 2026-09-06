@@ -25,21 +25,28 @@ Synthetic data only. All business rules are synthetic POC semantics. **No HIPAA 
 
 ## Status
 
-Milestones 0 and 1 are in place.
+Every milestone is implemented.
 
-**Foundation.** pnpm workspace, TypeScript strict, ESLint with a module-boundary rule, Vitest, and a
-Fastify platform baseline: fail-closed configuration, safe structured logging, trace ids, security
-headers, CORS allowlist, body limits, `no-store`, a non-leaking error handler and `/health`. Plus a
-brand-neutrality guard, secret scanning and CI.
+| Milestone | Delivers                                               | State                                |
+| --------- | ------------------------------------------------------ | ------------------------------------ |
+| M0        | Workspace, platform baseline, brand guard, CI          | Complete                             |
+| M1        | Data model, classification registry, synthetic seed    | Complete                             |
+| M2        | Authentication, authorization, audit                   | Complete                             |
+| M3        | Benefits, integrations, deterministic eligibility      | Complete                             |
+| M4        | AI provider boundary, tool calling, grounded guidance  | Complete                             |
+| M5        | Web client for members, employers and support          | Complete                             |
+| M6        | Threat model, security documentation, demo walkthrough | Complete                             |
+| M7        | Deployment configuration and documentation             | Configuration complete, not deployed |
 
-**Data model.** PostgreSQL through Prisma: portable member identity with enrollment-scoped employer
-and plan relationships, category-aware ledger, immutable eligibility decisions and an append-only
-audit trail enforced by database triggers. A field-level data-classification registry covers every
-persisted column, guarded by a test that reads the schema. A deterministic synthetic seed provides
-two employers, two plans, four members, an enrollment history and category spend.
+Two things are deliberately unclaimed, both needing access this work did not have.
 
-Authentication, authorization, eligibility rules and the AI layer arrive in later milestones; see
-[docs/architecture.md](docs/architecture.md).
+- **Not deployed.** There is no live URL. The hosting configuration is complete and everything
+  checkable without an account was checked; what still needs a running environment is listed
+  unticked in [the demonstration notes](docs/demo.md).
+- **Live model evaluations unverified.** No provider key was available, so the golden-question suite
+  has never run against a real model. It skips cleanly and is not part of the merge gate.
+
+See [docs/architecture.md](docs/architecture.md) for how the pieces fit together.
 
 ## Getting started
 

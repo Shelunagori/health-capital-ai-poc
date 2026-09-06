@@ -90,13 +90,16 @@ incl. brand guard and gitleaks; manual demo deploy in M7). Docker Compose for lo
 
 ## Commands
 
-Available now (M0-M1):
+Every command below exists.
 pnpm install · docker compose up -d · pnpm db:migrate · pnpm db:deploy · pnpm db:seed · pnpm db:reset · pnpm db:generate ·
-pnpm dev (api :3001) · pnpm test (unit) · pnpm test:integration (needs a migrated and seeded PostgreSQL) ·
-pnpm lint · pnpm format · pnpm typecheck · pnpm build · pnpm brand-guard [--commits <range>]
+pnpm dev (api :3001, web :3000) · pnpm dev:api · pnpm dev:web ·
+pnpm test (unit and component) · pnpm test:integration · pnpm test:security · pnpm test:privacy · pnpm test:ai-pipeline
+(the four above need a migrated and seeded PostgreSQL) ·
+pnpm test:ai-live (runs against a real model; skips every case unless GEMINI_API_KEY is set, and has never been run with one) ·
+pnpm lint · pnpm format · pnpm typecheck · pnpm build · pnpm brand-guard [--commits <range>] · pnpm docker:build
 pnpm --filter @health-capital/api test src/platform/config.test.ts (single file)
-Added by later milestones: pnpm test:security · pnpm test:privacy · pnpm test:ai-pipeline ·
-GEMINI_API_KEY=... pnpm test:ai-live · pnpm demo:reseed
+Deployment preparation only, nothing is deployed: render.yaml, apps/web/vercel.json,
+.github/workflows/demo-deploy.yml and pnpm demo:reseed configure a demonstration that has never been hosted.
 
 Local setup: copy `.env.example` to `.env`; `APP_ENV=local` needs no secrets to boot. `pnpm db:seed` requires
 `SEED_USER_PASSWORD` (at least 12 characters) and stores only its Argon2id hash. The generated Prisma client lives in
