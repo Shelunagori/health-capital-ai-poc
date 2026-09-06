@@ -1,0 +1,263 @@
+/* Deliberately small. Readable type, real focus rings, and a layout that works at 360px. */
+:root {
+  --ink: #16202c;
+  --ink-quiet: #4a5866;
+  --line: #d5dce4;
+  --paper: #ffffff;
+  --ground: #f4f6f9;
+  --accent: #12507a;
+  --eligible: #1c6b3f;
+  --eligible-bg: #e3f3ea;
+  --partial: #8a5800;
+  --partial-bg: #fbf0da;
+  --ineligible: #99231d;
+  --ineligible-bg: #fbe6e4;
+  --undetermined: #45505c;
+  --undetermined-bg: #e9edf2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.shell {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.banner {
+  background: #2b3a4a;
+  color: #fff;
+  padding: 0.6rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.footer {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1rem;
+  color: var(--ink-quiet);
+  font-size: 0.8125rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1.125rem;
+  margin: 0 0 0.75rem;
+}
+h3 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0.15rem 0 0;
+  color: var(--ink-quiet);
+}
+
+.stack > * + * {
+  margin-top: 1rem;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.panel--narrow {
+  max-width: 26rem;
+}
+
+.two-up {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 48rem) {
+  .two-up {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.form > * + * {
+  margin-top: 0.85rem;
+}
+
+.field {
+  display: block;
+}
+.field__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  font-size: 0.9375rem;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.55rem 0.6rem;
+  font: inherit;
+  color: inherit;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  min-height: 2.75rem;
+}
+.button[disabled] {
+  opacity: 0.65;
+  cursor: progress;
+}
+.button--quiet {
+  background: transparent;
+  color: var(--accent);
+}
+
+.hint {
+  color: var(--ink-quiet);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+.error {
+  color: var(--ineligible);
+  background: var(--ineligible-bg);
+  border: 1px solid var(--ineligible);
+  border-radius: 6px;
+  padding: 0.55rem 0.7rem;
+  margin: 0;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.9rem;
+  background: var(--paper);
+}
+.card__header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.badge--eligible {
+  color: var(--eligible);
+  background: var(--eligible-bg);
+}
+.badge--partial {
+  color: var(--partial);
+  background: var(--partial-bg);
+}
+.badge--ineligible {
+  color: var(--ineligible);
+  background: var(--ineligible-bg);
+}
+.badge--undetermined {
+  color: var(--undetermined);
+  background: var(--undetermined-bg);
+}
+
+.facts {
+  margin: 0.75rem 0 0;
+}
+.facts__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  justify-content: space-between;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.facts dt {
+  color: var(--ink-quiet);
+  margin: 0;
+}
+.facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.explanation {
+  margin: 0.85rem 0 0;
+}
+.conditions {
+  margin: 0.6rem 0 0;
+  color: var(--partial);
+  font-weight: 600;
+}
+.reasons {
+  margin-top: 0.75rem;
+}
+.reasons summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.reasons ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+.rule-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  color: var(--ink-quiet);
+}
+.versions,
+.source {
+  color: var(--ink-quiet);
+  font-size: 0.8125rem;
+}
+.source {
+  margin: 0.6rem 0 0;
+}

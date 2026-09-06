@@ -100,4 +100,14 @@ jobs:
           pnpm test:security
           pnpm test:privacy
           pnpm test:ai-pipeline
-      - run: pnpm build
+      - name: Build both applications
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+        run: pnpm build
+      - name: Confirm no server secret reached the browser bundle
+        run: |
+          if grep -rlE 'JWT_SECRET|GEMINI_API_KEY|DATABASE_URL|SEED_USER_PASSWORD' apps/web/.next/static 2>/dev/null; then
+            echo 'A server-only variable name appears in the browser bundle.' >&2
+            exit 1
+          fi
+          echo 'No server-only variable names in the browser bundle.'

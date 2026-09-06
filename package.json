@@ -10,7 +10,9 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "dev": "pnpm --filter @health-capital/api dev",
+    "dev": "pnpm --parallel --filter @health-capital/api --filter @health-capital/web dev",
+    "dev:api": "pnpm --filter @health-capital/api dev",
+    "dev:web": "pnpm --filter @health-capital/web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm --filter @health-capital/contracts build && pnpm -r typecheck",
     "lint": "eslint .",

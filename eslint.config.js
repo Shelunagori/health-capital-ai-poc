@@ -12,6 +12,8 @@ export default tseslint.config(
       '**/coverage/**',
       '**/*.d.ts',
       'apps/api/src/generated/**',
+      // Excluded from the web tsconfig, so the type-aware rules have no project for it.
+      'apps/web/vitest.config.ts',
     ],
   },
   js.configs.recommended,
@@ -26,6 +28,16 @@ export default tseslint.config(
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+  {
+    files: ['apps/web/**/*.ts', 'apps/web/**/*.tsx'],
+    languageOptions: {
+      globals: { window: 'readonly', document: 'readonly', fetch: 'readonly', JSX: 'readonly' },
+    },
+    rules: {
+      // Next compiles these; the API's Node-oriented rules do not all apply.
+      'no-console': 'error',
     },
   },
   {

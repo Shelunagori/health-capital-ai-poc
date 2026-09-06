@@ -1,0 +1,21 @@
+# Secret-scanning configuration.
+#
+# The only thing narrowed here is scope: build output and dependencies are never committed, so a
+# filesystem scan that walks them reports Next.js's own generated preview keys rather than anything
+# a reviewer should act on. No detection rule is disabled, and nothing under version control is
+# exempt.
+title = "health-capital-ai-poc"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated and vendored paths, none of which are committed"
+paths = [
+  '''(^|/)\.next/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)dist/''',
+  '''(^|/)coverage/''',
+  '''(^|/)apps/api/src/generated/''',
+  '''(^|/)pnpm-lock\.yaml$''',
+]
