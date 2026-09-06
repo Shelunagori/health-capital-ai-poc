@@ -61,6 +61,26 @@ All eligibility rules are synthetic POC semantics. Never claim HIPAA compliance.
 - Everything works with `GEMINI_API_KEY` unset.
 - Security baseline (CORS allowlist, helmet, body limits, no-store, rate limits, config validation) ships with the endpoint.
 
+## Domain invariants
+
+The shape of the data model as implemented. Each is an architectural decision: changing one needs an ADR.
+`docs/architecture.md` holds the full model; do not restate the schema here.
+
+- `Member` is a portable person identity. Employer and plan relationships, with status and effective dates,
+  belong to `BenefitEnrollment`. Never move employer-specific state back onto `Member`.
+- `enrollmentExternalRef` belongs to `BenefitEnrollment`. It is classified INTERNAL and is enrollment-scoped,
+  never member-scoped, and it never crosses the AI boundary (see the adapter rule above).
+- One closed `BenefitCategory` vocabulary is shared by `CareRequest.treatmentCategory` and
+  `LedgerEntry.benefitCategory`. Do not add a parallel category model or free-text categories without an ADR.
+- Ledger amounts are positive magnitudes and the entry type decides the effect on balance
+  (`CONTRIBUTION - DEBIT + ADJUSTMENT`). Do not introduce signed debit or credit storage semantics.
+- `EligibilityDecision` is immutable. A later evaluation creates a new decision; no application path updates
+  or deletes persisted decision history. A database trigger enforces this.
+- `AuditEvent` is append-only. No application path updates or deletes an audit event. A database trigger
+  enforces this.
+- `CareRequest` stays minimized: no `providerName` and no arbitrary healthcare free text. A new stored field
+  needs a deterministic product or audit requirement, and an ADR where it changes a rule above.
+
 ## Stack
 
 pnpm workspace: `apps/api` (Fastify 5, Prisma, PostgreSQL, @google/genai), `apps/web` (Next.js App Router, pure API client, M5),
