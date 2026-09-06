@@ -105,6 +105,9 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3001
         run: pnpm build
+      - name: Build the API container
+        # Not pushed anywhere. Building it is what shows the deployment configuration works.
+        run: docker build -f apps/api/Dockerfile -t health-capital-api:ci .
       - name: Confirm no server secret reached the browser bundle
         run: |
           if grep -rlE 'JWT_SECRET|GEMINI_API_KEY|DATABASE_URL|SEED_USER_PASSWORD' apps/web/.next/static 2>/dev/null; then

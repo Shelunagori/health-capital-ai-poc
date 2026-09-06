@@ -29,7 +29,9 @@
     "test:security": "pnpm --filter @health-capital/contracts build && pnpm --filter @health-capital/api test:security",
     "test:privacy": "pnpm --filter @health-capital/contracts build && pnpm --filter @health-capital/api test:privacy",
     "test:ai-pipeline": "pnpm --filter @health-capital/contracts build && pnpm --filter @health-capital/api test:ai-pipeline",
-    "test:ai-live": "pnpm --filter @health-capital/contracts build && pnpm --filter @health-capital/api test:ai-live"
+    "test:ai-live": "pnpm --filter @health-capital/contracts build && pnpm --filter @health-capital/api test:ai-live",
+    "demo:reseed": "pnpm --filter @health-capital/api db:seed",
+    "docker:build": "docker build -f apps/api/Dockerfile -t health-capital-api:local ."
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

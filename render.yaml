@@ -1,0 +1,55 @@
+# Demo hosting for the API and its database.
+#
+# Chosen because it supplies, without any infrastructure code of our own: HTTPS on the public
+# endpoint, TLS to a managed PostgreSQL instance, provider-managed encryption at rest for that
+# database, and a secret store the container reads at runtime. Those four are the deployment
+# requirements; anything that provides them would do.
+#
+# No secret value appears in this file. `sync: false` means the value is set in the platform and is
+# never committed, and `fromDatabase` means the platform injects the connection string it owns.
+services:
+  - type: web
+    name: health-capital-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /ready
+    # Applied before the new container takes traffic, so it never serves against an old schema.
+    preDeployCommand: pnpm --filter @health-capital/api exec prisma migrate deploy
+    envVars:
+      - key: APP_ENV
+        # Startup fails here unless origins are HTTPS, the database requires TLS, the signing secret
+        # is long enough and real, and the cross-origin allowlist is neither empty nor a wildcard.
+        value: demo
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        fromDatabase:
+          name: health-capital-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: PUBLIC_WEB_ORIGIN
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      # Tighter than the defaults: a public demonstration is a different exposure to a local run.
+      - key: RATE_LIMIT_GLOBAL_MAX
+        value: 120
+      - key: RATE_LIMIT_LOGIN_MAX
+        value: 5
+      - key: RATE_LIMIT_GUIDANCE_MAX
+        value: 10
+
+databases:
+  - name: health-capital-db
+    plan: basic-256mb
+    # The provider supplies TLS in the connection string and encryption at rest for the volume and
+    # its backups. Both are verified against the running instance before the demo is announced,
+    # and the result is recorded in docs/demo.md.
+    postgresMajorVersion: '16'

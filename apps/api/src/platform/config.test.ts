@@ -221,3 +221,77 @@ describe('configuration errors never echo secret values', () => {
     expect(scrubSecrets('nothing to scrub', ['SECRETVALUE'])).toBe('nothing to scrub');
   });
 });
+
+/**
+ * The deployment requirements, as the process itself enforces them. A public demonstration that
+ * starts against plain HTTP or an unencrypted database connection would undermine the point of
+ * everything above it, so the process refuses rather than warns.
+ */
+describe('demo deployment requirements are enforced at startup', () => {
+  const deployed = (overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv => ({
+    APP_ENV: 'demo',
+    PORT: '3001',
+    PUBLIC_WEB_ORIGIN: 'https://demo.example.test',
+    PUBLIC_API_URL: 'https://api.demo.example.test',
+    CORS_ALLOWED_ORIGINS: 'https://demo.example.test',
+    DATABASE_URL: 'postgresql://app:pw@db.internal:5432/app?sslmode=require',
+    JWT_SECRET: SAFE_SECRET,
+    RATE_LIMIT_GLOBAL_MAX: '120',
+    RATE_LIMIT_LOGIN_MAX: '5',
+    RATE_LIMIT_GUIDANCE_MAX: '10',
+    ...overrides,
+  });
+
+  it('accepts a correctly configured deployment', () => {
+    const config = loadConfig(deployed());
+    expect(config.appEnv).toBe('demo');
+    expect(config.rateLimitGuidanceMax).toBe(10);
+  });
+
+  it('refuses to start against a database connection that is not encrypted', () => {
+    for (const url of [
+      'postgresql://app:pw@db.internal:5432/app',
+      'postgresql://app:pw@db.internal:5432/app?sslmode=disable',
+      'postgresql://app:pw@db.internal:5432/app?sslmode=prefer',
+    ]) {
+      expect(problemsOf(deployed({ DATABASE_URL: url })).join('\n'), url).toContain('require TLS');
+    }
+  });
+
+  it('accepts stricter TLS modes', () => {
+    for (const mode of ['require', 'verify-ca', 'verify-full']) {
+      const url = `postgresql://app:pw@db.internal:5432/app?sslmode=${mode}`;
+      expect(problemsOf(deployed({ DATABASE_URL: url })), mode).toEqual([]);
+    }
+  });
+
+  it('refuses to serve a public endpoint over plain HTTP', () => {
+    const problems = problemsOf(
+      deployed({
+        PUBLIC_API_URL: 'http://api.demo.example.test',
+        PUBLIC_WEB_ORIGIN: 'http://demo.example.test',
+      }),
+    ).join('\n');
+    expect(problems).toContain('PUBLIC_API_URL must be set and use https://');
+    expect(problems).toContain('PUBLIC_WEB_ORIGIN must be set and use https://');
+  });
+
+  it('refuses a cross-origin allowlist that is open or missing', () => {
+    expect(problemsOf(deployed({ CORS_ALLOWED_ORIGINS: '*' })).join('\n')).toContain('wildcard');
+    expect(problemsOf(deployed({ CORS_ALLOWED_ORIGINS: '' })).join('\n')).toContain(
+      'must not be empty',
+    );
+  });
+
+  it('refuses a signing secret that was copied from the example file', () => {
+    const problems = problemsOf(
+      deployed({ JWT_SECRET: 'change-me-generate-a-real-secret-of-at-least-32-bytes' }),
+    ).join('\n');
+    expect(problems).toContain('JWT_SECRET must not be a placeholder value');
+  });
+
+  it('allows the demonstration to run with no AI provider configured', () => {
+    // The structured path, the decisions and the audit trail do not need one.
+    expect(problemsOf(deployed({ GEMINI_API_KEY: undefined }))).toEqual([]);
+  });
+});

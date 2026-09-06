@@ -1,0 +1,74 @@
+# Applies migrations and reloads the synthetic dataset for the public demonstration.
+#
+# Manual only. There is no continuous delivery here: the hosting platforms build and deploy on push
+# themselves, and this workflow exists for the database work that follows, which is not something to
+# run automatically against a live environment.
+name: Demo database deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      reseed:
+        description: 'Replace the demonstration data with a fresh synthetic dataset'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate and optionally reseed
+    runs-on: ubuntu-latest
+    # Requires an approval in the repository's environment settings before it can touch the demo.
+    environment: demo
+    env:
+      APP_ENV: demo
+      # Set in the environment, never here. Must require TLS: the API refuses to start otherwise,
+      # and this step would then deploy a schema no running process could use.
+      DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Refuse a connection string that does not require TLS
+        run: |
+          case "$DATABASE_URL" in
+            *sslmode=require*|*sslmode=verify-ca*|*sslmode=verify-full*) echo 'Connection requires TLS.' ;;
+            *) echo 'DEMO_DATABASE_URL must require TLS (sslmode=require or stricter).' >&2; exit 1 ;;
+          esac
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm db:deploy
+
+      - name: Reload synthetic data
+        if: ${{ inputs.reseed }}
+        env:
+          # Every account gets this password. Rotate it in the environment when it should change;
+          # only its Argon2id hash is ever written to the database.
+          SEED_USER_PASSWORD: ${{ secrets.DEMO_SEED_PASSWORD }}
+        run: pnpm demo:reseed
+
+      - name: Confirm the API reports itself ready
+        env:
+          DEMO_API_URL: ${{ secrets.DEMO_API_URL }}
+        run: |
+          if [ -z "$DEMO_API_URL" ]; then
+            echo 'DEMO_API_URL is not set; skipping the readiness check.' >&2
+            exit 1
+          fi
+          case "$DEMO_API_URL" in
+            https://*) : ;;
+            *) echo 'DEMO_API_URL must be https.' >&2; exit 1 ;;
+          esac
+          curl --fail --show-error --silent --max-time 30 "$DEMO_API_URL/ready"

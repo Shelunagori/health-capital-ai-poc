@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/coverage
+.git
+.github
+docs
+apps/web/test
+apps/api/test
+**/*.test.ts
+**/*.test.tsx
+.env
+.env.*
+!.env.example
+.brand-guard-terms
