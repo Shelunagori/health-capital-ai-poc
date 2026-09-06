@@ -8,7 +8,7 @@ import type {
   SupportAuditEventDto,
 } from '@health-capital/contracts';
 import { ApiError, api } from '@/lib/api-client';
-import { formatDate, humaniseCode } from '@/lib/format';
+import { formatDate, formatDateTime, humaniseCode } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
 const REASON_CODES = [
@@ -87,10 +87,15 @@ export function SupportView(): JSX.Element {
 
   return (
     <div className="stack">
-      <header className="page-header">
-        <div>
-          <h1>Health Capital</h1>
-          <p className="subtitle">Support desk</p>
+      <header className="appbar">
+        <div className="appbar__identity">
+          <span className="appbar__mark" aria-hidden="true">
+            HC
+          </span>
+          <div className="appbar__text">
+            <h1>Health Capital</h1>
+            <p className="subtitle">Support desk</p>
+          </div>
         </div>
         <button type="button" className="button button--quiet" onClick={signOut}>
           Sign out
@@ -109,72 +114,83 @@ export function SupportView(): JSX.Element {
           onSubmit={(event) => void onLookup(event)}
           aria-labelledby="lookup-heading"
         >
-          <h2 id="lookup-heading">Look up a member</h2>
-          <p className="hint">
-            Reading someone&rsquo;s profile is recorded against your account, with the reason and
-            case reference you give here.
-          </p>
+          <div>
+            <span className="eyebrow">Recorded privileged read</span>
+            <h2 id="lookup-heading">Look up a member</h2>
+            <p className="hint">
+              Reading someone&rsquo;s profile is recorded against your account, with the reason and
+              case reference you give here. Both are required, and the read is refused without them.
+            </p>
+          </div>
 
-          <label className="field">
-            <span className="field__label">Employer</span>
-            <select
-              value={employerId}
-              onChange={(event) => setEmployerId(event.target.value)}
-              name="employerId"
-            >
-              <option value="">Choose an employer</option>
-              {employers.map((employer) => (
-                <option key={employer.employerId} value={employer.employerId}>
-                  {employer.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="field-pair">
+            <label className="field">
+              <span className="field__label">Employer</span>
+              <select
+                value={employerId}
+                onChange={(event) => setEmployerId(event.target.value)}
+                name="employerId"
+              >
+                <option value="">Choose an employer</option>
+                {employers.map((employer) => (
+                  <option key={employer.employerId} value={employer.employerId}>
+                    {employer.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field">
-            <span className="field__label">Member</span>
-            <select
-              value={selectedMemberId}
-              onChange={(event) => setSelectedMemberId(event.target.value)}
-              name="memberId"
-              disabled={members.length === 0}
-            >
-              <option value="">Choose a member</option>
-              {members.map((member) => (
-                <option key={member.memberId} value={member.memberId}>
-                  {member.firstName} {member.lastName}
-                </option>
-              ))}
-            </select>
-          </label>
+            <label className="field">
+              <span className="field__label">Member</span>
+              <select
+                value={selectedMemberId}
+                onChange={(event) => setSelectedMemberId(event.target.value)}
+                name="memberId"
+                disabled={members.length === 0}
+              >
+                <option value="">Choose a member</option>
+                {members.map((member) => (
+                  <option key={member.memberId} value={member.memberId}>
+                    {member.firstName} {member.lastName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
-          <label className="field">
-            <span className="field__label">Reason</span>
-            <select
-              value={reasonCode}
-              onChange={(event) => setReasonCode(event.target.value)}
-              name="reasonCode"
-            >
-              {REASON_CODES.map((code) => (
-                <option key={code} value={code}>
-                  {humaniseCode(code)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="field-pair">
+            <label className="field">
+              <span className="field__label">Reason</span>
+              <select
+                value={reasonCode}
+                onChange={(event) => setReasonCode(event.target.value)}
+                name="reasonCode"
+              >
+                {REASON_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {humaniseCode(code)}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-          <label className="field">
-            <span className="field__label">Case reference</span>
-            <input
-              type="text"
-              name="caseRef"
-              required
-              placeholder="CASE-0042"
-              pattern="[A-Z]{2,6}-[0-9]{1,8}"
-              value={caseRef}
-              onChange={(event) => setCaseRef(event.target.value)}
-            />
-          </label>
+            <div>
+              <label className="field">
+                <span className="field__label">Case reference</span>
+                <input
+                  type="text"
+                  name="caseRef"
+                  required
+                  placeholder="CASE-0042"
+                  pattern="[A-Z]{2,6}-[0-9]{1,8}"
+                  value={caseRef}
+                  onChange={(event) => setCaseRef(event.target.value)}
+                />
+              </label>
+              {/* Outside the label on purpose: inside it, this sentence becomes part of the field's name. */}
+              <span className="field__note">Two to six letters, a dash, then digits.</span>
+            </div>
+          </div>
 
           <button type="submit" className="button" disabled={selectedMemberId === ''}>
             Look up
@@ -182,39 +198,48 @@ export function SupportView(): JSX.Element {
         </form>
 
         {profile !== null && (
-          <dl className="facts" data-testid="support-profile">
-            <div className="facts__row">
-              <dt>Name</dt>
-              <dd>
-                {profile.firstName} {profile.lastName}
-              </dd>
-            </div>
-            <div className="facts__row">
-              <dt>Date of birth</dt>
-              <dd>{formatDate(profile.dateOfBirth)}</dd>
-            </div>
-            <div className="facts__row">
-              <dt>Address</dt>
-              <dd>
-                {profile.addressLine}, {profile.city} {profile.postalCode}
-              </dd>
-            </div>
-          </dl>
+          <div className="result">
+            <h3 className="result__title">Member profile</h3>
+            <dl className="facts" data-testid="support-profile">
+              <div className="facts__row">
+                <dt>Name</dt>
+                <dd>
+                  {profile.firstName} {profile.lastName}
+                </dd>
+              </div>
+              <div className="facts__row">
+                <dt>Date of birth</dt>
+                <dd>{formatDate(profile.dateOfBirth)}</dd>
+              </div>
+              <div className="facts__row">
+                <dt>Address</dt>
+                <dd>
+                  {profile.addressLine}, {profile.city} {profile.postalCode}
+                </dd>
+              </div>
+            </dl>
+          </div>
         )}
       </section>
 
       <section className="panel" aria-labelledby="audit-heading">
-        <div className="page-header">
-          <h2 id="audit-heading">Audit trail</h2>
-          <button type="button" className="button button--quiet" onClick={() => void loadAudit()}>
+        <div className="section-head">
+          <div>
+            <h2 id="audit-heading">Audit trail</h2>
+            <p className="hint">
+              Who did what, when, and whether it was allowed. Amounts, treatment categories and the
+              records themselves are deliberately not shown here: reading those is a separate,
+              recorded action.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button button--quiet button--small"
+            onClick={() => void loadAudit()}
+          >
             Refresh
           </button>
         </div>
-        <p className="hint">
-          Who did what, when, and whether it was allowed. Amounts, treatment categories and the
-          records themselves are deliberately not shown here: reading those is a separate, recorded
-          action.
-        </p>
         <div className="table-scroll">
           <table className="table" data-testid="audit-table">
             <caption className="visually-hidden">Recent audit events</caption>
@@ -231,9 +256,15 @@ export function SupportView(): JSX.Element {
             <tbody>
               {events.map((event) => (
                 <tr key={event.id}>
-                  <td>{new Date(event.occurredAt).toLocaleString('en-IE')}</td>
+                  <td>{formatDateTime(event.occurredAt)}</td>
                   <th scope="row">{event.action}</th>
-                  <td>{event.outcome}</td>
+                  <td>
+                    <span
+                      className={`pill ${event.outcome === 'ALLOW' ? 'pill--yes' : 'pill--no'}`}
+                    >
+                      {event.outcome}
+                    </span>
+                  </td>
                   <td>{event.actorRole ?? '—'}</td>
                   <td>{humaniseCode(event.reasonCode)}</td>
                   <td>{event.caseRef ?? '—'}</td>

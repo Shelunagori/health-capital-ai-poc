@@ -17,14 +17,12 @@ export default function HomePage(): JSX.Element {
   const { session } = useSession();
   if (session === null) {
     return (
-      <div className="stack">
-        <header className="page-header">
-          <div>
-            <h1>Health Capital</h1>
-            <p className="subtitle">Benefits guidance</p>
-          </div>
+      <div className="auth">
+        <header className="auth__head">
+          <h1>Health Capital</h1>
+          <p className="subtitle">Check whether your health capital covers a healthcare expense.</p>
         </header>
-        <section className="panel panel--narrow">
+        <section className="panel panel--auth">
           <LoginForm />
         </section>
       </div>
@@ -51,9 +49,14 @@ function RoleView(): JSX.Element {
       .catch(() => setEmployerId(null));
   }, [token, session?.role]);
 
-  if (session === null) return <p>You are signed out.</p>;
+  if (session === null) return <p className="empty">You are signed out.</p>;
   if (session.role === 'MEMBER') return <MemberView />;
   if (session.role === 'SUPPORT') return <SupportView />;
-  if (employerId === null) return <p>Loading your employer details…</p>;
+  if (employerId === null)
+    return (
+      <p className="empty" role="status">
+        Loading your employer details…
+      </p>
+    );
   return <EmployerView employerId={employerId} />;
 }

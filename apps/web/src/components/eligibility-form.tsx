@@ -67,7 +67,14 @@ export function EligibilityForm({
       onSubmit={(event) => void onSubmit(event)}
       aria-labelledby="check-heading"
     >
-      <h2 id="check-heading">Check an expense</h2>
+      <div>
+        <span className="eyebrow eyebrow--quiet">Straight from your plan rules</span>
+        <h2 id="check-heading">Check an expense</h2>
+        <p className="hint">
+          Choose the kind of care and the amount. This route needs no assistant at all: your benefit
+          rules produce the decision on their own.
+        </p>
+      </div>
 
       <label className="field">
         <span className="field__label">Kind of care</span>
@@ -114,9 +121,15 @@ export function EligibilityForm({
         </p>
       )}
 
-      <button type="submit" className="button" disabled={busy}>
-        {busy ? 'Checking…' : 'Check this expense'}
-      </button>
+      <div className="form__actions">
+        <button type="submit" className="button button--full" disabled={busy}>
+          {busy ? 'Checking…' : 'Check this expense'}
+        </button>
+
+        <p className="hint form__footnote">
+          No free-text field, on purpose: nothing about your care is stored to answer this.
+        </p>
+      </div>
     </form>
   );
 }

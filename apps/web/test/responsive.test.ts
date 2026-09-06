@@ -36,8 +36,27 @@ describe('the page is built for a narrow screen', () => {
   });
 
   it('starts single column and only splits when there is room', () => {
-    expect(css).toMatch(/\.two-up\s*\{[^}]*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/\.workspace\s*\{[^}]*grid-template-columns:\s*1fr;/);
     expect(css).toMatch(/@media \(min-width: 48rem\)/);
+  });
+
+  it('adds the third workspace column only on a wide screen', () => {
+    // Two columns from 48rem, three from 74rem: the results column joins the row last.
+    expect(css).toMatch(/@media \(min-width: 74rem\)/);
+    const wide = /@media \(min-width: 74rem\)\s*\{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(wide).toMatch(/\.workspace\s*\{[^}]*grid-template-columns:[^;]*minmax/);
+  });
+
+  it('finishes the columns of a shared row on one baseline', () => {
+    const shared = /@media \(min-width: 48rem\)\s*\{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(shared).toMatch(/\.workspace\s*\{[^}]*align-items:\s*stretch/);
+  });
+
+  it('stretches the panels without stretching what is inside them', () => {
+    // The surfaces fill the row; a form's action is never pushed to the foot of a tall card, which
+    // is what left a block of empty space in the shorter column.
+    expect(css).not.toMatch(/margin-top:\s*auto/);
+    expect(css).not.toMatch(/\.workspace\s*\{[^}]*(?:min-)?height:/);
   });
 
   it('lets wide content scroll inside its own box', () => {
@@ -51,6 +70,17 @@ describe('the page is built for a narrow screen', () => {
 
   it('gives touch targets a usable height', () => {
     expect(css).toMatch(/\.button\s*\{[^}]*min-height:\s*2\.75rem/);
+  });
+
+  it('stops its loading animation for a reader who asked for less motion', () => {
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
+    const block = /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(block).toMatch(/animation-duration:\s*0\.001ms/);
+  });
+
+  it('lets a wide page breathe without pinning it to one width', () => {
+    expect(css).toMatch(/\.shell\s*\{[^}]*max-width:\s*\d/);
+    expect(css).toMatch(/\.shell\s*\{[^}]*padding:\s*clamp\(/);
   });
 
   it('sizes text in relative units so a reader can enlarge it', () => {

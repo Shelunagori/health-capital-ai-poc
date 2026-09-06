@@ -46,10 +46,15 @@ export function EmployerView({ employerId }: { employerId: string }): JSX.Elemen
 
   return (
     <div className="stack">
-      <header className="page-header">
-        <div>
-          <h1>Health Capital</h1>
-          <p className="subtitle">Employer administration</p>
+      <header className="appbar">
+        <div className="appbar__identity">
+          <span className="appbar__mark" aria-hidden="true">
+            HC
+          </span>
+          <div className="appbar__text">
+            <h1>Health Capital</h1>
+            <p className="subtitle">Employer administration</p>
+          </div>
         </div>
         <button type="button" className="button button--quiet" onClick={signOut}>
           Sign out
@@ -63,16 +68,26 @@ export function EmployerView({ employerId }: { employerId: string }): JSX.Elemen
       )}
 
       <section className="panel" aria-labelledby="plan-heading">
-        <h2 id="plan-heading">Plan cover</h2>
+        <div className="section-head">
+          <div>
+            <h2 id="plan-heading">Plan cover</h2>
+            <p className="hint">What the plan covers, and up to how much.</p>
+          </div>
+        </div>
         {plans.length === 0 ? (
-          <p>No plans found.</p>
+          <p className="empty">No plans found.</p>
         ) : (
           plans.map((plan) => (
-            <div key={plan.planId} className="stack">
+            <div key={plan.planId} className="stack stack--tight">
               <h3>{plan.name}</h3>
-              <p className="hint">
-                Plan year {formatDate(plan.planYearStart)} to {formatDate(plan.planYearEnd)}.
-                Configuration version {plan.planConfigVersion}.
+              <p className="meta">
+                <span>
+                  Plan year {formatDate(plan.planYearStart)} &ndash; {formatDate(plan.planYearEnd)}
+                </span>
+                <span className="meta__dot" aria-hidden="true" />
+                <span>Configuration version {plan.planConfigVersion}</span>
+                <span className="meta__dot" aria-hidden="true" />
+                <span>As of {formatDate(plan.planConfigAsOf)}</span>
               </p>
               <div className="table-scroll">
                 <table className="table">
@@ -89,8 +104,12 @@ export function EmployerView({ employerId }: { employerId: string }): JSX.Elemen
                     {plan.coverage.map((rule) => (
                       <tr key={rule.ruleRef}>
                         <th scope="row">{humaniseCategory(rule.category)}</th>
-                        <td>{rule.covered ? 'Yes' : 'No'}</td>
                         <td>
+                          <span className={`pill ${rule.covered ? 'pill--yes' : 'pill--no'}`}>
+                            {rule.covered ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="numeric">
                           {rule.annualLimitCents === null
                             ? 'No limit'
                             : formatCents(rule.annualLimitCents)}
@@ -107,11 +126,15 @@ export function EmployerView({ employerId }: { employerId: string }): JSX.Elemen
       </section>
 
       <section className="panel" aria-labelledby="roster-heading">
-        <h2 id="roster-heading">Enrolled members</h2>
-        <p className="hint">
-          Who is enrolled and on which plan. What anyone claimed for, and what they spent, is not
-          available to this role.
-        </p>
+        <div className="section-head">
+          <div>
+            <h2 id="roster-heading">Enrolled members</h2>
+            <p className="hint">
+              Who is enrolled and on which plan. What anyone claimed for, and what they spent, is
+              not available to this role.
+            </p>
+          </div>
+        </div>
         <div className="table-scroll">
           <table className="table" data-testid="roster">
             <caption className="visually-hidden">Members enrolled with this employer</caption>
@@ -130,9 +153,15 @@ export function EmployerView({ employerId }: { employerId: string }): JSX.Elemen
                   <th scope="row">
                     {member.firstName} {member.lastName}
                   </th>
-                  <td>{member.employeeId}</td>
+                  <td className="numeric">{member.employeeId}</td>
                   <td>{member.planName}</td>
-                  <td>{member.status.toLowerCase()}</td>
+                  <td>
+                    <span
+                      className={`pill ${member.status === 'ACTIVE' ? 'pill--yes' : 'pill--no'}`}
+                    >
+                      {member.status.toLowerCase()}
+                    </span>
+                  </td>
                   <td>{formatDate(member.effectiveFrom)}</td>
                 </tr>
               ))}

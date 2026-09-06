@@ -282,3 +282,86 @@ describe('the support view requires a reason and a case reference', () => {
     });
   });
 });
+
+describe('dates in the admin screens read like dates', () => {
+  const ISO_LOOKING = /\d{4}-\d{2}-\d{2}/;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(api, 'employerPlans').mockResolvedValue({ plans: [plan] });
+    vi.spyOn(api, 'employerMembers').mockResolvedValue({ members: roster });
+    vi.spyOn(api, 'employers').mockResolvedValue({
+      employers: [
+        { employerId: EMPLOYER_ID, name: 'Northstar Industries', employerRef: 'EMP-001' },
+      ],
+    });
+    vi.spyOn(api, 'auditEvents').mockResolvedValue({
+      events: [
+        {
+          id: '88888888-8888-4888-8888-000000000001',
+          occurredAt: '2026-05-04T10:00:00.000Z',
+          traceId: 'trace-1',
+          actorUserId: '77777777-7777-4777-8777-000000000003',
+          actorRole: 'SUPPORT',
+          action: 'PRIVILEGED_READ',
+          outcome: 'ALLOW',
+          resourceType: 'MEMBER',
+          engineVersion: null,
+          planConfigVersion: null,
+          aiProvider: null,
+          aiModel: null,
+          promptTemplateId: null,
+          promptVersion: null,
+          reasonCode: 'BENEFITS_DISPUTE',
+          caseRef: 'CASE-0042',
+          details: {},
+        },
+      ],
+      count: 1,
+    });
+  });
+
+  it('writes the plan year and enrollment date in words', async () => {
+    const { container } = render(
+      withSession(<EmployerView employerId={EMPLOYER_ID} />, 'EMPLOYER_ADMIN'),
+    );
+    await screen.findByTestId('roster');
+    expect(screen.getByText(/1 Jan 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/31 Dec 2026/)).toBeInTheDocument();
+    expect(screen.getByText('1 Jan 2024')).toBeInTheDocument();
+    expect(container.textContent ?? '').not.toMatch(ISO_LOOKING);
+  });
+
+  it('writes the audit timestamp in words, with the time', async () => {
+    render(withSession(<SupportView />));
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    const table = await screen.findByTestId('audit-table');
+    const when = table.querySelectorAll('tbody tr td')[0];
+    expect(when?.textContent).toBe('4 May 2026, 6:00 AM');
+    expect(table.textContent ?? '').not.toMatch(ISO_LOOKING);
+  });
+
+  it('writes a looked-up date of birth in words', async () => {
+    vi.spyOn(api, 'memberProfile').mockResolvedValue({
+      memberId: MEMBER_ID,
+      firstName: 'Sarah',
+      lastName: 'Thompson',
+      dateOfBirth: '1987-03-14',
+      addressLine: '14 Alder Street',
+      city: 'Riverton',
+      postalCode: '40218',
+    });
+
+    render(withSession(<SupportView />));
+    await userEvent.selectOptions(await screen.findByLabelText('Employer'), EMPLOYER_ID);
+    await waitFor(() => expect(screen.getByLabelText('Member')).not.toBeDisabled());
+    await userEvent.selectOptions(screen.getByLabelText('Member'), MEMBER_ID);
+    await userEvent.selectOptions(screen.getByLabelText('Reason'), 'BENEFITS_DISPUTE');
+    await userEvent.type(screen.getByLabelText('Case reference'), 'CASE-0042');
+    await userEvent.click(screen.getByRole('button', { name: 'Look up' }));
+
+    const shown = await screen.findByTestId('support-profile');
+    expect(shown).toHaveTextContent('14 Mar 1987');
+    expect(shown.textContent ?? '').not.toMatch(ISO_LOOKING);
+  });
+});

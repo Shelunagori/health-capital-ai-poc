@@ -50,7 +50,10 @@ export function LoginForm(): JSX.Element {
       onSubmit={(event) => void onSubmit(event)}
       aria-labelledby="signin-heading"
     >
-      <h2 id="signin-heading">Sign in</h2>
+      <div>
+        <h2 id="signin-heading">Sign in</h2>
+        <p className="hint">Use the demonstration account you were given.</p>
+      </div>
 
       <noscript>
         <p className="error">
@@ -89,7 +92,7 @@ export function LoginForm(): JSX.Element {
         </p>
       )}
 
-      <button type="submit" className="button" disabled={busy}>
+      <button type="submit" className="button button--full" disabled={busy}>
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
 

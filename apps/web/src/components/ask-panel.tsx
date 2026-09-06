@@ -44,7 +44,14 @@ export function AskPanel({
 
   return (
     <form className="form" onSubmit={(event) => void onSubmit(event)} aria-labelledby="ask-heading">
-      <h2 id="ask-heading">Ask about an expense</h2>
+      <div>
+        <span className="eyebrow">With the assistant</span>
+        <h2 id="ask-heading">Ask about an expense</h2>
+        <p className="hint">
+          Describe the expense in your own words. The assistant works out what to check and puts the
+          answer into plain language; whether it is covered is decided by your benefit rules.
+        </p>
+      </div>
 
       <label className="field">
         <span className="field__label">Your question</span>
@@ -64,14 +71,16 @@ export function AskPanel({
         </p>
       )}
 
-      <button type="submit" className="button" disabled={busy}>
-        {busy ? 'Asking…' : 'Ask'}
-      </button>
+      <div className="form__actions">
+        <button type="submit" className="button button--full" disabled={busy}>
+          {busy ? 'Asking…' : 'Ask'}
+        </button>
 
-      <p className="hint">
-        Your question is used to work out what to check and is not stored. The decision always comes
-        from your plan rules, never from the assistant.
-      </p>
+        <p className="hint form__footnote">
+          Your question is used to work out what to check and is not stored. The decision always
+          comes from your plan rules, never from the assistant.
+        </p>
+      </div>
     </form>
   );
 }

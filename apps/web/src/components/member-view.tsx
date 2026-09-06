@@ -13,6 +13,7 @@ import { formatDate } from '@/lib/format';
 import { AskPanel } from './ask-panel';
 import { DecisionCard } from './decision-card';
 import { EligibilityForm } from './eligibility-form';
+import { Skeleton } from './skeleton';
 
 /** One answer, from either route, so the page renders both the same way. */
 interface Answer {
@@ -42,6 +43,12 @@ function repeatsUnavailableNotice(answer: Answer, answers: readonly Answer[]): b
   );
 }
 
+/** The initials shown in the corner mark. Two letters, or one, or nothing at all while loading. */
+function initials(profile: MemberSelfDto | null): string {
+  if (profile === null) return '••';
+  return `${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase();
+}
+
 /**
  * The member's page: who they are, what they are enrolled in, and the two ways to check an expense.
  *
@@ -54,6 +61,7 @@ export function MemberView(): JSX.Element {
 
   const [profile, setProfile] = useState<MemberSelfDto | null>(null);
   const [enrollments, setEnrollments] = useState<EnrollmentDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -72,6 +80,8 @@ export function MemberView(): JSX.Element {
         setEnrollments(loadedEnrollments.enrollments);
       } catch {
         if (!cancelled) setLoadError('Your details could not be loaded.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
 
@@ -90,14 +100,19 @@ export function MemberView(): JSX.Element {
 
   return (
     <div className="stack">
-      <header className="page-header">
-        <div>
-          <h1>Health Capital</h1>
-          <p className="subtitle">
-            {profile === null
-              ? 'Loading your details…'
-              : `${profile.firstName} ${profile.lastName}`}
-          </p>
+      <header className="appbar">
+        <div className="appbar__identity">
+          <span className="appbar__mark" aria-hidden="true">
+            {initials(profile)}
+          </span>
+          <div className="appbar__text">
+            <h1>Health Capital</h1>
+            <p className="subtitle">
+              {profile === null
+                ? 'Loading your details…'
+                : `${profile.firstName} ${profile.lastName}`}
+            </p>
+          </div>
         </div>
         <button type="button" className="button button--quiet" onClick={signOut}>
           Sign out
@@ -110,21 +125,42 @@ export function MemberView(): JSX.Element {
         </p>
       )}
 
-      <section aria-labelledby="cover-heading" className="panel">
-        <h2 id="cover-heading">Your cover</h2>
-        {activeEnrollment === null ? (
-          <p>No active enrollment.</p>
+      <section aria-labelledby="cover-heading" className="cover">
+        <h2 id="cover-heading" className="cover__heading">
+          Your cover
+        </h2>
+
+        {loading ? (
+          <div className="cover__facts" aria-busy="true">
+            <p className="visually-hidden" role="status">
+              Loading your cover.
+            </p>
+            <div className="cover__fact" aria-hidden="true">
+              <Skeleton className="skeleton--short" />
+              <Skeleton className="skeleton--half" />
+            </div>
+            <div className="cover__fact" aria-hidden="true">
+              <Skeleton className="skeleton--short" />
+              <Skeleton className="skeleton--half" />
+            </div>
+            <div className="cover__fact" aria-hidden="true">
+              <Skeleton className="skeleton--short" />
+              <Skeleton className="skeleton--half" />
+            </div>
+          </div>
+        ) : activeEnrollment === null ? (
+          <p className="hint">No active enrollment.</p>
         ) : (
-          <dl className="facts">
-            <div className="facts__row">
+          <dl className="cover__facts">
+            <div className="cover__fact">
               <dt>Employer</dt>
               <dd>{activeEnrollment.employerName}</dd>
             </div>
-            <div className="facts__row">
+            <div className="cover__fact">
               <dt>Plan</dt>
               <dd>{activeEnrollment.planName}</dd>
             </div>
-            <div className="facts__row">
+            <div className="cover__fact">
               <dt>Cover began</dt>
               <dd>{formatDate(activeEnrollment.effectiveFrom)}</dd>
             </div>
@@ -132,7 +168,7 @@ export function MemberView(): JSX.Element {
         )}
       </section>
 
-      <div className="two-up">
+      <div className="workspace">
         <section className="panel">
           <AskPanel
             token={token}
@@ -159,32 +195,38 @@ export function MemberView(): JSX.Element {
             }
           />
         </section>
-      </div>
-
-      <section aria-labelledby="answers-heading" className="panel">
-        <h2 id="answers-heading">Recent checks</h2>
-        {answers.length === 0 ? (
-          <p>Nothing checked yet in this session.</p>
-        ) : (
-          <div className="stack">
-            {answers.map((answer, index) =>
-              answer.decision === null ? (
-                <p key={`clarify-${index}`} className="explanation" data-testid="clarification">
-                  {answer.explanation}
-                </p>
-              ) : (
-                <DecisionCard
-                  key={answer.decision.decisionId}
-                  decision={answer.decision}
-                  explanation={answer.explanation}
-                  explanationSource={answer.explanationSource}
-                  aiStatus={answer.aiStatus}
-                />
-              ),
-            )}
+        <section aria-labelledby="answers-heading" className="panel workspace__results">
+          <div className="section-head">
+            <div>
+              <h2 id="answers-heading">Recent checks</h2>
+              <p className="hint">
+                This session only. Nothing here is kept once you close the page.
+              </p>
+            </div>
           </div>
-        )}
-      </section>
+          {answers.length === 0 ? (
+            <p className="empty">Nothing checked yet in this session.</p>
+          ) : (
+            <div className="stack">
+              {answers.map((answer, index) =>
+                answer.decision === null ? (
+                  <p key={`clarify-${index}`} className="notice" data-testid="clarification">
+                    {answer.explanation}
+                  </p>
+                ) : (
+                  <DecisionCard
+                    key={answer.decision.decisionId}
+                    decision={answer.decision}
+                    explanation={answer.explanation}
+                    explanationSource={answer.explanationSource}
+                    aiStatus={answer.aiStatus}
+                  />
+                ),
+              )}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { DecisionCard } from '@/components/decision-card';
 import { EligibilityForm } from '@/components/eligibility-form';
 import { EmployerView } from '@/components/employer-view';
 import { LoginForm } from '@/components/login-form';
+import { MemberView } from '@/components/member-view';
 import { SupportView } from '@/components/support-view';
 import { SessionProvider, useSession } from '@/lib/session';
 import { api } from '@/lib/api-client';
@@ -101,6 +102,27 @@ describe('the pages pass the mechanical accessibility rules', () => {
       ],
     });
     vi.spyOn(api, 'auditEvents').mockResolvedValue({ events: [], count: 0 });
+    vi.spyOn(api, 'profile').mockResolvedValue({
+      memberId: '33333333-3333-4333-8333-000000000001',
+      firstName: 'Sarah',
+      lastName: 'Thompson',
+      dateOfBirth: '1987-03-14',
+      addressLine: '14 Alder Street',
+      city: 'Riverton',
+      postalCode: '40218',
+    });
+    vi.spyOn(api, 'enrollments').mockResolvedValue({
+      enrollments: [
+        {
+          enrollmentId: '44444444-4444-4444-8444-000000000001',
+          employerName: 'Northstar Industries',
+          planName: 'Northstar Standard Health Capital',
+          status: 'ACTIVE',
+          effectiveFrom: '2024-01-01',
+          effectiveTo: null,
+        },
+      ],
+    });
   });
 
   it('sign in', async () => {
@@ -133,6 +155,17 @@ describe('the pages pass the mechanical accessibility rules', () => {
       withSession(<EmployerView employerId={EMPLOYER_ID} />, 'EMPLOYER_ADMIN'),
     );
     await screen.findByTestId('roster');
+    await expectAccessible(container);
+  });
+
+  it('the member page while its details are still loading', async () => {
+    const { container } = render(withSession(<MemberView />, 'MEMBER'));
+    await expectAccessible(container);
+  });
+
+  it('the member page once its details have arrived', async () => {
+    const { container } = render(withSession(<MemberView />, 'MEMBER'));
+    await screen.findByText('Sarah Thompson');
     await expectAccessible(container);
   });
 
@@ -192,6 +225,17 @@ describe('every control can be reached and named without a mouse', () => {
     // A well-formed amount, so the browser submits and the failure comes from the server.
     await userEvent.click(screen.getByRole('button', { name: 'Check this expense' }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
+  });
+
+  it('announces that the member page is loading without reading out empty placeholders', async () => {
+    render(withSession(<MemberView />, 'MEMBER'));
+
+    const status = await screen.findByRole('status');
+    expect(status).toHaveTextContent(/loading your cover/i);
+    // The shapes themselves are decoration and are hidden from the accessibility tree.
+    for (const placeholder of document.querySelectorAll('.skeleton')) {
+      expect(placeholder.closest('[aria-hidden="true"]')).not.toBeNull();
+    }
   });
 
   it('keeps the verdict readable without relying on colour alone', () => {

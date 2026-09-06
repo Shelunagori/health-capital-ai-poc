@@ -6,6 +6,7 @@ import type { EligibilityDecisionDto } from '@health-capital/contracts';
 import { DecisionCard } from '@/components/decision-card';
 import { VerdictBadge } from '@/components/verdict-badge';
 import { AskPanel } from '@/components/ask-panel';
+import { EligibilityForm } from '@/components/eligibility-form';
 import { MemberView } from '@/components/member-view';
 import { SessionProvider, useSession } from '@/lib/session';
 import { api } from '@/lib/api-client';
@@ -70,6 +71,42 @@ describe('the verdict comes from the decision, not the wording', () => {
   ] as const)('labels %s as %s', (outcome, label) => {
     render(<VerdictBadge outcome={outcome} />);
     expect(screen.getByTestId('verdict-badge')).toHaveTextContent(label);
+  });
+
+  it('keeps the evidence collapsed until it is asked for', () => {
+    const { container } = render(
+      <DecisionCard
+        decision={decision}
+        explanation="Partly covered."
+        explanationSource="template"
+      />,
+    );
+
+    const details = container.querySelector('details');
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute('open');
+    // Collapsed, but present in the markup rather than conditionally rendered: the evidence is
+    // one keystroke away and is never removed from the page.
+    expect(details).toHaveTextContent('ELIG-LIMIT-04');
+    expect(details).toHaveTextContent(/rules version 1.0.0/);
+  });
+
+  it('leaves the evidence reachable from the keyboard', async () => {
+    render(
+      <DecisionCard
+        decision={decision}
+        explanation="Partly covered."
+        explanationSource="template"
+      />,
+    );
+
+    // Native disclosure semantics, not a div pretending: the summary is the first tab stop in the
+    // card, and the browser's own Enter and Space handling comes with it.
+    await userEvent.tab();
+    const summary = screen.getByText('Why this decision');
+    expect(summary).toHaveFocus();
+    expect(summary.tagName).toBe('SUMMARY');
+    expect(summary.parentElement?.tagName).toBe('DETAILS');
   });
 
   it('shows the rule references behind the decision', async () => {
@@ -329,5 +366,30 @@ describe('recent checks keep one entry per thing that happened', () => {
     await userEvent.click(check);
 
     await waitFor(() => expect(screen.getAllByTestId('verdict-badge')).toHaveLength(2));
+  });
+});
+
+describe('dates on the member screen read like dates, not database values', () => {
+  const ISO_LOOKING = /\d{4}-\d{2}-\d{2}/;
+
+  it('shows the date of service in words', () => {
+    const { container } = render(
+      <DecisionCard
+        decision={decision}
+        explanation="Partly covered."
+        explanationSource="template"
+      />,
+    );
+    expect(screen.getByText('4 May 2026')).toBeInTheDocument();
+    expect(container.textContent ?? '').not.toMatch(ISO_LOOKING);
+  });
+
+  it('keeps the date input itself in the format the browser and the API need', () => {
+    render(<EligibilityForm token="a-token" onResult={() => undefined} />);
+    const field = screen.getByLabelText('Date of service');
+    expect(field).toHaveAttribute('type', 'date');
+    // The control only accepts this shape, and it is what the API is sent. Presentation is
+    // everywhere else; this one value stays technical on purpose.
+    expect((field as HTMLInputElement).value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
