@@ -18,6 +18,12 @@ const read = (relative: string): string =>
 
 const css = read('../src/app/globals.css');
 
+/** The body of one media query, read from the stylesheet rather than guessed at. */
+const block = (query: string): string => {
+  const start = css.indexOf(query);
+  return start === -1 ? '' : css.slice(start, css.indexOf('\n}\n', start));
+};
+
 describe('the page is built for a narrow screen', () => {
   it('declares the viewport, so a phone does not render it at desktop width', () => {
     expect(viewport).toMatchObject({ width: 'device-width', initialScale: 1 });
@@ -37,26 +43,72 @@ describe('the page is built for a narrow screen', () => {
 
   it('starts single column and only splits when there is room', () => {
     expect(css).toMatch(/\.workspace\s*\{[^}]*grid-template-columns:\s*1fr;/);
+    expect(css).toMatch(/\.workspace__actions\s*\{[^}]*grid-template-columns:\s*1fr;/);
     expect(css).toMatch(/@media \(min-width: 48rem\)/);
   });
 
-  it('adds the third workspace column only on a wide screen', () => {
-    // Two columns from 48rem, three from 74rem: the results column joins the row last.
-    expect(css).toMatch(/@media \(min-width: 74rem\)/);
-    const wide = /@media \(min-width: 74rem\)\s*\{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
-    expect(wide).toMatch(/\.workspace\s*\{[^}]*grid-template-columns:[^;]*minmax/);
+  it('splits the two forms before it splits the page', () => {
+    // Tablet: Ask and Check side by side, results still full width in normal document flow.
+    const tablet = block('@media (min-width: 48rem)');
+    expect(tablet).toMatch(/\.workspace__actions\s*\{[^}]*grid-template-columns:\s*minmax/);
+    expect(tablet).not.toMatch(/\.workspace\s*\{/);
+    expect(tablet).not.toMatch(/\.history\s*\{/);
   });
 
-  it('finishes the columns of a shared row on one baseline', () => {
-    const shared = /@media \(min-width: 48rem\)\s*\{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
-    expect(shared).toMatch(/\.workspace\s*\{[^}]*align-items:\s*stretch/);
+  it('puts actions beside results, rather than three columns, on a wide screen', () => {
+    const wide = block('@media (min-width: 74rem)');
+    // Two tracks: the actions area and the results column.
+    const columns = /\.workspace\s*\{[^}]*grid-template-columns:([^;]*);/.exec(wide)?.[1] ?? '';
+    expect(columns.match(/minmax/g) ?? []).toHaveLength(2);
   });
 
-  it('stretches the panels without stretching what is inside them', () => {
-    // The surfaces fill the row; a form's action is never pushed to the foot of a tall card, which
-    // is what left a block of empty space in the shorter column.
+  it('matches the two forms to each other once they share a row', () => {
+    const tablet = block('@media (min-width: 48rem)');
+    expect(tablet).toMatch(/\.workspace__actions\s*\{[^}]*align-items:\s*stretch/);
+  });
+
+  it('never forces a form to the height of the results column', () => {
+    // Stacked, each form is its own height; the pairing above is what aligns them side by side.
+    expect(css).toMatch(/\.workspace__actions\s*\{[^}]*align-items:\s*start/);
+    // The three ways that empty white area came back before.
     expect(css).not.toMatch(/margin-top:\s*auto/);
-    expect(css).not.toMatch(/\.workspace\s*\{[^}]*(?:min-)?height:/);
+    expect(css).not.toMatch(/\.panel\s*\{[^}]*height:\s*100%/);
+    for (const selector of [
+      '\\.workspace',
+      '\\.workspace__actions',
+      '\\.workspace__results',
+      '\\.panel',
+    ]) {
+      expect(css).not.toMatch(new RegExp(`${selector}\\s*\\{[^}]*(?:min-)?height:`));
+    }
+  });
+
+  it('lines the columns up on one bottom edge', () => {
+    const wide = block('@media (min-width: 74rem)');
+    expect(wide).toMatch(/\.workspace\s*\{[^}]*align-items:\s*stretch/);
+  });
+
+  it('keeps the history out of the row height, so a long one cannot stretch the forms', () => {
+    // An in-flow list reports its full height to the grid, and the forms get padded out to match.
+    // Out of flow it reports nothing: the forms decide the row and the list fills what it is given.
+    const wide = block('@media (min-width: 74rem)');
+    expect(wide).toMatch(
+      /\.workspace__results\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\)/,
+    );
+    expect(wide).toMatch(/\.history-frame\s*\{[^}]*position:\s*relative/);
+    expect(wide).toMatch(/\.history\s*\{[^}]*position:\s*absolute/);
+    expect(wide).toMatch(/\.history\s*\{[^}]*inset:\s*0/);
+    expect(wide).toMatch(/\.history\s*\{[^}]*overflow-y:\s*auto/);
+    // Never sideways: the cards inside it wrap.
+    expect(css).not.toMatch(/\.history\s*\{[^}]*overflow-x:\s*(?:auto|scroll)/);
+  });
+
+  it('leaves tablet and phone in normal document flow', () => {
+    // Nothing bounds the history until the wide breakpoint, so both scroll the page as usual.
+    const beforeWide = css.slice(0, css.indexOf('@media (min-width: 74rem)'));
+    expect(beforeWide).not.toMatch(/\.history\s*\{/);
+    expect(beforeWide).not.toMatch(/\.history-frame\s*\{/);
+    expect(beforeWide).not.toMatch(/\.workspace__results\s*\{[^}]*grid-template-rows/);
   });
 
   it('lets wide content scroll inside its own box', () => {

@@ -169,32 +169,35 @@ export function MemberView(): JSX.Element {
       </section>
 
       <div className="workspace">
-        <section className="panel">
-          <AskPanel
-            token={token}
-            onResult={(result) =>
-              addAnswer({
-                decision: result.decision,
-                explanation: result.explanation,
-                explanationSource: result.explanationSource,
-                aiStatus: result.aiStatus,
-              })
-            }
-          />
-        </section>
+        <div className="workspace__actions">
+          <section className="panel">
+            <AskPanel
+              token={token}
+              onResult={(result) =>
+                addAnswer({
+                  decision: result.decision,
+                  explanation: result.explanation,
+                  explanationSource: result.explanationSource,
+                  aiStatus: result.aiStatus,
+                })
+              }
+            />
+          </section>
 
-        <section className="panel">
-          <EligibilityForm
-            token={token}
-            onResult={(result) =>
-              addAnswer({
-                decision: result.decision,
-                explanation: result.explanation,
-                explanationSource: result.explanationSource,
-              })
-            }
-          />
-        </section>
+          <section className="panel">
+            <EligibilityForm
+              token={token}
+              onResult={(result) =>
+                addAnswer({
+                  decision: result.decision,
+                  explanation: result.explanation,
+                  explanationSource: result.explanationSource,
+                })
+              }
+            />
+          </section>
+        </div>
+
         <section aria-labelledby="answers-heading" className="panel workspace__results">
           <div className="section-head">
             <div>
@@ -207,22 +210,31 @@ export function MemberView(): JSX.Element {
           {answers.length === 0 ? (
             <p className="empty">Nothing checked yet in this session.</p>
           ) : (
-            <div className="stack">
-              {answers.map((answer, index) =>
-                answer.decision === null ? (
-                  <p key={`clarify-${index}`} className="notice" data-testid="clarification">
-                    {answer.explanation}
-                  </p>
-                ) : (
-                  <DecisionCard
-                    key={answer.decision.decisionId}
-                    decision={answer.decision}
-                    explanation={answer.explanation}
-                    explanationSource={answer.explanationSource}
-                    aiStatus={answer.aiStatus}
-                  />
-                ),
-              )}
+            // The frame takes the space left in the panel; the list inside it fills that space and
+            // scrolls. Focusable on purpose: where a list scrolls, a keyboard has to reach it.
+            <div className="history-frame">
+              <div
+                className="stack history"
+                tabIndex={0}
+                role="group"
+                aria-labelledby="answers-heading"
+              >
+                {answers.map((answer, index) =>
+                  answer.decision === null ? (
+                    <p key={`clarify-${index}`} className="notice" data-testid="clarification">
+                      {answer.explanation}
+                    </p>
+                  ) : (
+                    <DecisionCard
+                      key={answer.decision.decisionId}
+                      decision={answer.decision}
+                      explanation={answer.explanation}
+                      explanationSource={answer.explanationSource}
+                      aiStatus={answer.aiStatus}
+                    />
+                  ),
+                )}
+              </div>
             </div>
           )}
         </section>

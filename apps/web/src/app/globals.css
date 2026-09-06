@@ -204,37 +204,75 @@ h3 {
   box-shadow: var(--shadow);
 }
 /*
- * The member workspace: ask, check, and what came back.
+ * The member workspace: the two ways to check something, and what came back.
  *
- * A column each once the screen is wide enough, with the results column widest, so a decision
- * appears beside the control that produced it rather than below the fold.
- *
- * Panels sharing a row finish on one baseline, which is the grid's own default: the surfaces fill
- * the row, and their contents keep their natural height at the top of them. That is a different
- * thing from stretching the contents, which is what left a form's button floating in the middle of
- * a tall empty card before. Nothing here sets a height.
+ * Two things on a wide screen — an actions area and a results column — rather than three equal
+ * columns. The actions area is a plain grid with no surface of its own, which is what lets Ask and
+ * Check keep their natural heights while the column beside them grows: a card only ever ends where
+ * its own content ends. A long history scrolls inside the results panel instead of making the
+ * dashboard metres tall. No panel here is given a height.
  */
 .workspace {
   display: grid;
   gap: var(--gap);
   grid-template-columns: 1fr;
 }
+
+/* Transparent on purpose: it positions the two forms, it is not a surface. */
+.workspace__actions {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
 @media (min-width: 48rem) {
-  .workspace {
-    grid-template-columns: 1fr 1fr;
+  /* The two routes side by side; results still full width beneath them. */
+  .workspace__actions {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    /*
+     * Once they share a row the two forms finish together, which is only safe because they are
+     * matched against each other and never against the history: the results column is kept out of
+     * the row's height below, so no amount of history can pull these two down.
+     */
     align-items: stretch;
   }
-  /* Two routes side by side, results across the full width beneath them. */
-  .workspace__results {
-    grid-column: 1 / -1;
-  }
 }
+
 @media (min-width: 74rem) {
   .workspace {
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.6fr);
+    grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr);
+    align-items: stretch;
   }
+
+  /*
+   * Heading in the first row, the history taking whatever is left in the second.
+   *
+   * The list is positioned out of flow inside that second row, which is the point: an in-flow list
+   * reports its full height to the grid, so a fourth check made the row taller and the two forms
+   * were padded out with white to match. Out of flow it reports nothing, the row is decided by the
+   * forms next to it, and the list fills what it is given and scrolls. Every result stays in the
+   * list, and the cards keep their own height.
+   */
   .workspace__results {
-    grid-column: auto;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  /* Nothing to fill when there is no history yet, so the placeholder keeps its own size. */
+  .workspace__results > .empty {
+    align-self: start;
+  }
+  .history-frame {
+    position: relative;
+    min-height: 14rem;
+  }
+  .history {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* Room for the scrollbar, so a card never sits underneath it. */
+    padding-right: 0.4rem;
   }
 }
 

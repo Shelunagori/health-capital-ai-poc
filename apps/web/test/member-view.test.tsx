@@ -345,6 +345,24 @@ describe('recent checks keep one entry per thing that happened', () => {
     await waitFor(() => expect(screen.getAllByTestId('clarification')).toHaveLength(2));
   });
 
+  it('keeps the history reachable by keyboard, since it can scroll', async () => {
+    vi.spyOn(api, 'ask').mockResolvedValue({
+      decision: null,
+      explanation: UNAVAILABLE,
+      explanationSource: 'template',
+      aiStatus: 'unavailable',
+    });
+
+    renderMemberPage();
+    await ask('can I claim physio');
+    await screen.findByTestId('clarification');
+
+    const history = document.querySelector('.history');
+    expect(history).not.toBeNull();
+    expect(history).toHaveAttribute('tabindex', '0');
+    expect(history).toHaveAccessibleName('Recent checks');
+  });
+
   it('keeps every deterministic check, including two checks of the same expense', async () => {
     let issued = 0;
     vi.spyOn(api, 'evaluate').mockImplementation(() => {
