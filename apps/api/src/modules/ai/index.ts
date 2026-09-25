@@ -54,5 +54,6 @@ export {
   FallbackProvider,
   DEFAULT_FALLBACK_COOLDOWN_MS,
   type FallbackOptions,
+  type ProviderFailure,
 } from './providers/fallback.js';
 export { selectProvider, type ProviderSettings } from './providers/select.js';

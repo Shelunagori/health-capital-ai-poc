@@ -22,9 +22,7 @@ export default function HomePage(): JSX.Element {
           <h1>Health Capital</h1>
           <p className="subtitle">Check whether your health capital covers a healthcare expense.</p>
         </header>
-        <section className="panel panel--auth">
-          <LoginForm />
-        </section>
+        <LoginForm />
       </div>
     );
   }

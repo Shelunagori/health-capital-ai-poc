@@ -87,7 +87,7 @@ export class GeminiProvider implements AIProvider {
       this.name,
     ).catch((err: unknown) => {
       if (err instanceof AiUnavailableError) throw err;
-      throw new AiUnavailableError(this.name, 'CALL_FAILED');
+      throw new AiUnavailableError(this.name, 'CALL_FAILED', upstreamStatus(err));
     });
 
     const toolCalls: ModelToolCall[] = (response.functionCalls ?? []).map((call) => ({
@@ -118,7 +118,7 @@ export class GeminiProvider implements AIProvider {
       this.name,
     ).catch((err: unknown) => {
       if (err instanceof AiUnavailableError) throw err;
-      throw new AiUnavailableError(this.name, 'CALL_FAILED');
+      throw new AiUnavailableError(this.name, 'CALL_FAILED', upstreamStatus(err));
     });
 
     const text = response.text;
@@ -133,4 +133,10 @@ export class GeminiProvider implements AIProvider {
       throw new AiUnavailableError(this.name, 'BAD_RESPONSE');
     }
   }
+}
+
+/** The HTTP status the SDK attaches to an API error, if any. Only the number is read. */
+function upstreamStatus(err: unknown): number | undefined {
+  const status = (err as { status?: unknown } | null)?.status;
+  return typeof status === 'number' ? status : undefined;
 }

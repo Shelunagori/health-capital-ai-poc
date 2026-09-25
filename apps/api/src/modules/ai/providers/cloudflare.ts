@@ -123,12 +123,15 @@ export class CloudflareWorkersAiProvider implements AIProvider {
     const message = completion.choices?.[0]?.message;
     if (message === undefined) throw new AiUnavailableError(this.name, 'BAD_RESPONSE');
 
-    const toolCalls: ModelToolCall[] = (message.tool_calls ?? []).map((call) => ({
+    let toolCalls: ModelToolCall[] = (message.tool_calls ?? []).map((call) => ({
       name: typeof call.function?.name === 'string' ? call.function.name : '',
       args: parseArguments(call.function?.arguments),
     }));
     const text =
       typeof message.content === 'string' && message.content !== '' ? message.content : null;
+    if (toolCalls.length === 0 && text !== null) {
+      toolCalls = toolCallsWrittenAsText(text, new Set(request.tools.map((tool) => tool.name)));
+    }
 
     return { text: toolCalls.length > 0 ? null : text, toolCalls };
   }
@@ -184,9 +187,9 @@ export class CloudflareWorkersAiProvider implements AIProvider {
         throw new AiUnavailableError(this.name, 'CALL_FAILED');
       }
       if (!response.ok) {
-        // Released unread: an error body can echo the request.
+        // Released unread: an error body can echo the request. Only the status is kept.
         await response.body?.cancel().catch(() => undefined);
-        throw new AiUnavailableError(this.name, 'CALL_FAILED');
+        throw new AiUnavailableError(this.name, 'CALL_FAILED', response.status);
       }
       try {
         return (await response.json()) as ChatCompletion;
@@ -215,4 +218,33 @@ function parseArguments(raw: unknown): unknown {
     // Untrusted and unparseable: handed on as nothing, so the executor rejects it as invalid.
     return null;
   }
+}
+
+/**
+ * Some Workers AI models answer a tool request by writing the call as JSON in the message text
+ * instead of in `tool_calls`: `{"name": "...", "parameters": {...}}`, or a list of those. Read as a
+ * call only when the whole text is that shape and names a tool that was offered; anything else is
+ * the model talking. The arguments stay untrusted and are validated exactly as any other call's.
+ */
+function toolCallsWrittenAsText(text: string, offered: ReadonlySet<string>): ModelToolCall[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripCodeFence(text)) as unknown;
+  } catch {
+    return [];
+  }
+  const candidates: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+  const calls: ModelToolCall[] = [];
+  for (const candidate of candidates) {
+    if (candidate === null || typeof candidate !== 'object') return [];
+    const { name, parameters, arguments: args } = candidate as Record<string, unknown>;
+    if (typeof name !== 'string' || !offered.has(name)) return [];
+    calls.push({ name, args: parseArguments(parameters ?? args) });
+  }
+  return calls;
+}
+
+function stripCodeFence(text: string): string {
+  const fenced = /^\s*```(?:json)?\s*([\s\S]*?)\s*```\s*$/i.exec(text);
+  return (fenced?.[1] ?? text).trim();
 }

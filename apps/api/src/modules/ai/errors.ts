@@ -6,6 +6,11 @@ export class AiUnavailableError extends Error {
   constructor(
     public readonly providerName: string,
     public readonly cause_: 'NOT_CONFIGURED' | 'TIMEOUT' | 'CALL_FAILED' | 'BAD_RESPONSE',
+    /**
+     * The upstream HTTP status when the provider answered with an error, for diagnosis: a number,
+     * never a body. Undefined when there was no response or the provider does not expose one.
+     */
+    public readonly upstreamStatus?: number,
   ) {
     // No provider message, no request body, no key: only which provider and what kind of failure.
     super(`AI provider ${providerName} could not answer (${cause_})`);

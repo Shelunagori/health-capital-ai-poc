@@ -195,6 +195,25 @@ describe('a chain of providers', () => {
     });
   });
 
+  it('reports every failed attempt, even one the next provider recovered from', async () => {
+    const failures: unknown[] = [];
+    const chain = new FallbackProvider([failing('primary'), answering('secondary')], {
+      onAttemptFailed: (failure) => failures.push(failure),
+    });
+
+    await chain.generateWithTools(toolRequest);
+    expect(failures).toEqual([
+      {
+        provider: 'primary',
+        model: 'primary-model',
+        cause: 'CALL_FAILED',
+        upstreamStatus: undefined,
+      },
+    ]);
+    // Names, a kind and a status: nothing from the request reaches the report.
+    expect(JSON.stringify(failures)).not.toContain('dental');
+  });
+
   it('keeps the attribution a nested chain already set', async () => {
     const inner = new FallbackProvider([failing('a'), answering('b')]);
     const outer = new FallbackProvider([inner]);
@@ -222,6 +241,13 @@ describe('choosing a provider from configuration', () => {
     const provider = selectProvider({ cloudflare: { ...cloudflare, model: '@cf/x/y' } });
     expect(provider).toBeInstanceOf(CloudflareWorkersAiProvider);
     expect(provider.model).toBe('@cf/x/y');
+  });
+
+  it('wraps a single provider only when something is listening for its failures', () => {
+    const provider = selectProvider({ gemini, onAttemptFailed: () => undefined });
+    expect(provider).toBeInstanceOf(FallbackProvider);
+    // A chain of one looks exactly like the provider it wraps.
+    expect(provider.name).toBe('gemini');
   });
 
   it('puts Cloudflare first and Gemini behind it when both are configured', () => {

@@ -25,8 +25,21 @@ import type {
  */
 export const DEFAULT_FALLBACK_COOLDOWN_MS = 30_000;
 
+/** One provider that could not answer. Names, a kind and a status code only: never a payload. */
+export interface ProviderFailure {
+  provider: string;
+  model: string;
+  cause: AiUnavailableError['cause_'];
+  upstreamStatus: number | undefined;
+}
+
 export interface FallbackOptions {
   cooldownMs?: number;
+  /**
+   * Told about every attempt that failed, including one a later provider recovered from, so an
+   * outage of the primary is visible even while the fallback hides it from members.
+   */
+  onAttemptFailed?: ((failure: ProviderFailure) => void) | undefined;
   /** Injected by tests. */
   now?: () => number;
 }
@@ -37,6 +50,7 @@ export class FallbackProvider implements AIProvider {
   private readonly providers: readonly AIProvider[];
   private readonly cooldownMs: number;
   private readonly now: () => number;
+  private readonly onAttemptFailed: ((failure: ProviderFailure) => void) | undefined;
   /** When each provider may be tried again, by position. Operational state only: no request data. */
   private readonly retryAt: number[];
 
@@ -47,6 +61,7 @@ export class FallbackProvider implements AIProvider {
     this.model = providers.map((p) => p.model).join('+');
     this.cooldownMs = options.cooldownMs ?? DEFAULT_FALLBACK_COOLDOWN_MS;
     this.now = options.now ?? Date.now;
+    this.onAttemptFailed = options.onAttemptFailed;
     this.retryAt = providers.map(() => 0);
   }
 
@@ -87,6 +102,12 @@ export class FallbackProvider implements AIProvider {
         if (!(err instanceof AiUnavailableError)) throw err;
         this.retryAt[index] = this.now() + this.cooldownMs;
         lastError = err;
+        this.onAttemptFailed?.({
+          provider: provider.name,
+          model: provider.model,
+          cause: err.cause_,
+          upstreamStatus: err.upstreamStatus,
+        });
       }
     }
     throw lastError;

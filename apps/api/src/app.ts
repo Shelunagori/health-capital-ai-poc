@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import type { AppConfig } from './platform/config.js';
+import type { SafeLogFields } from './platform/logger.js';
 import type { Db } from './platform/db.js';
 import { registerSecurity } from './platform/http/security.js';
 import { registerErrorHandler } from './platform/http/error-handler.js';
@@ -154,7 +155,29 @@ export async function buildApp({
         config.geminiApiKey === undefined
           ? undefined
           : { apiKey: config.geminiApiKey, model: config.geminiModel },
+      // Which provider failed and how, so an outage is diagnosable from the logs. Names, a kind and
+      // an upstream status code only: the request, the response and the member's words never.
+      onAttemptFailed: (failure) =>
+        app.log.warn(
+          {
+            action: 'AI_PROVIDER_FAILED',
+            provider: failure.provider,
+            model: failure.model,
+            code: failure.cause,
+            ...(failure.upstreamStatus === undefined ? {} : { statusCode: failure.upstreamStatus }),
+          } satisfies SafeLogFields,
+          'ai provider failed',
+        ),
     });
+  // Names only, so it is clear from the logs which providers a deployment will try.
+  app.log.info(
+    {
+      action: 'AI_PROVIDER_SELECTED',
+      provider: aiProvider.name,
+      model: aiProvider.model,
+    } satisfies SafeLogFields,
+    'ai provider selected',
+  );
 
   registerEligibilityRoutes(app, {
     db,

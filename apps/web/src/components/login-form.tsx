@@ -17,7 +17,7 @@ import { useSession } from '@/lib/session';
  * password in the query string, the address bar and the history. Declaring POST means the worst
  * case is a discarded request body rather than a credential written into the URL.
  *
- * Below the form the fictional demonstration accounts are listed, one button per role. When the
+ * Beside the form (below it on a narrow screen) the fictional demonstration accounts are listed, one button per role. When the
  * shared password is published (`NEXT_PUBLIC_DEMO_PASSWORD`) a button signs straight in as that
  * role; when it is not, it fills in the address and leaves the password to the visitor.
  */
@@ -63,65 +63,68 @@ export function LoginForm(): JSX.Element {
   }
 
   return (
-    <form
-      className="form"
-      // Never used while hydrated; the guard against a password reaching the URL if it is not.
-      method="post"
-      action="/"
-      onSubmit={(event) => void onSubmit(event)}
-      aria-labelledby="signin-heading"
-    >
-      <div>
-        <h2 id="signin-heading">Sign in</h2>
-        <p className="hint">Use a demonstration account below, or one you were given.</p>
-      </div>
+    <div className="auth__body">
+      <section className="panel panel--auth">
+        <form
+          className="form"
+          // Never used while hydrated; the guard against a password reaching the URL if it is not.
+          method="post"
+          action="/"
+          onSubmit={(event) => void onSubmit(event)}
+          aria-labelledby="signin-heading"
+        >
+          <div>
+            <h2 id="signin-heading">Sign in</h2>
+            <p className="hint">Use a demonstration account, or one you were given.</p>
+          </div>
 
-      <noscript>
-        <p className="error">
-          Signing in needs JavaScript. Without it your details cannot be sent securely, so this form
-          will not work.
-        </p>
-      </noscript>
+          <noscript>
+            <p className="error">
+              Signing in needs JavaScript. Without it your details cannot be sent securely, so this
+              form will not work.
+            </p>
+          </noscript>
 
-      <label className="field">
-        <span className="field__label">Email address</span>
-        <input
-          type="email"
-          name="email"
-          autoComplete="username"
-          required
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-      </label>
+          <label className="field">
+            <span className="field__label">Email address</span>
+            <input
+              type="email"
+              name="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
 
-      <label className="field">
-        <span className="field__label">Password</span>
-        <input
-          type="password"
-          name="password"
-          autoComplete="current-password"
-          required
-          ref={passwordInput}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-      </label>
+          <label className="field">
+            <span className="field__label">Password</span>
+            <input
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              required
+              ref={passwordInput}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
 
-      {error !== null && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
+          {error !== null && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
 
-      <button type="submit" className="button button--full" disabled={busy}>
-        {busy ? 'Signing in…' : 'Sign in'}
-      </button>
-
-      <section className="demo" aria-labelledby="demo-heading">
-        <h3 id="demo-heading" className="demo__heading">
+          <button type="submit" className="button button--full" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      </section>
+      <aside className="panel demo" aria-labelledby="demo-heading">
+        <h2 id="demo-heading" className="demo__heading">
           Demonstration accounts
-        </h3>
+        </h2>
         <p className="hint">
           Every account is fictional and holds synthetic data only.{' '}
           {DEMO_PASSWORD === undefined ? (
@@ -151,7 +154,7 @@ export function LoginForm(): JSX.Element {
             </li>
           ))}
         </ul>
-      </section>
-    </form>
+      </aside>
+    </div>
   );
 }

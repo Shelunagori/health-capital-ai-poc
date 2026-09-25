@@ -217,6 +217,38 @@ describe('the Cloudflare Workers AI provider', () => {
     expect(turn).toEqual({ text: 'How much does it cost?', toolCalls: [] });
   });
 
+  describe('a tool call the model wrote as text', () => {
+    const turnFor = async (content: string) => {
+      const { fetchImpl } = fakeFetch(() => json({ choices: [{ message: { content } }] }));
+      return new CloudflareWorkersAiProvider(ACCOUNT, TOKEN, { fetchImpl }).generateWithTools(
+        toolRequest(),
+      );
+    };
+
+    it('is read as a call when it names a tool that was offered', async () => {
+      await expect(turnFor('{"name": "get_available_balance", "parameters": {}}')).resolves.toEqual(
+        { text: null, toolCalls: [{ name: 'get_available_balance', args: {} }] },
+      );
+    });
+
+    it('is read inside a code fence, or as a list', async () => {
+      const fenced = await turnFor(
+        '```json\n[{"name": "get_available_balance", "arguments": "{}"}]\n```',
+      );
+      expect(fenced.toolCalls).toEqual([{ name: 'get_available_balance', args: {} }]);
+    });
+
+    it('stays text when it names a tool that was not offered, or is not only JSON', async () => {
+      for (const content of [
+        '{"name": "delete_everything", "parameters": {}}',
+        'Sure: {"name": "get_available_balance", "parameters": {}}',
+        '{"verdict": "ELIGIBLE"}',
+      ]) {
+        await expect(turnFor(content), content).resolves.toEqual({ text: content, toolCalls: [] });
+      }
+    });
+  });
+
   it('asks the explanation stage for the schema, and sends the decision only', async () => {
     const { fetchImpl, calls } = fakeFetch(() =>
       json({ choices: [{ message: { content: '{"verdict":"ELIGIBLE","explanation":"ok"}' } }] }),
@@ -278,6 +310,8 @@ describe('the Cloudflare Workers AI provider', () => {
         json({ errors: [{ message: 'echoed request text' }] }, 429),
       );
       expect(failure.cause_).toBe('CALL_FAILED');
+      // The status is kept for diagnosis; it is a number, never the body.
+      expect(failure.upstreamStatus).toBe(429);
     });
 
     it('on a network failure', async () => {
