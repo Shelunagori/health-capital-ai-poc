@@ -4,6 +4,7 @@ import type {
   AIProvider,
   ModelToolCall,
   StructuredRequest,
+  StructuredResult,
   ToolTurnRequest,
   ToolTurnResult,
 } from '../types.js';
@@ -100,7 +101,7 @@ export class GeminiProvider implements AIProvider {
     return { text: toolCalls.length > 0 ? null : (response.text ?? null), toolCalls };
   }
 
-  async generateStructured(request: StructuredRequest): Promise<unknown> {
+  async generateStructured(request: StructuredRequest): Promise<StructuredResult> {
     const response = await withTimeout(
       this.client.models.generateContent({
         model: this.model,
@@ -126,7 +127,7 @@ export class GeminiProvider implements AIProvider {
     }
 
     try {
-      return JSON.parse(text) as unknown;
+      return { value: JSON.parse(text) as unknown };
     } catch {
       // The unparseable text is deliberately not included anywhere.
       throw new AiUnavailableError(this.name, 'BAD_RESPONSE');

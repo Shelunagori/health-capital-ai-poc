@@ -20,9 +20,11 @@ Synthetic data only. All business rules are synthetic POC semantics. **No HIPAA 
 - **API readiness:** <https://health-capital-api.up.railway.app/ready>
 
 The client runs on Vercel and calls the API on Railway, which uses a managed PostgreSQL database on
-Railway. Sign-in details are synthetic and shared out of band, not from this repository.
+Railway. The sign-in page lists the fictional demonstration accounts; the shared password is never in this
+repository and is shown on the page only when the host publishes it (see docs/demo.md).
 
-Gemini is optional. When no provider is configured, or the one configured does not answer, the
+AI is optional. Cloudflare Workers AI is the preferred provider and Gemini its fallback (ADR-0007);
+either, both or neither may be configured. When no provider is configured, or the one configured does not answer, the
 assistant says so and the "Check an expense" form still gives a full decision from the plan rules,
 because nothing in that path needs a model. The deployed instance currently shows that fallback: the
 provider key is on a free tier whose quota is exhausted.
@@ -100,7 +102,7 @@ Each of these takes a minute and shows one property the design is built around. 
 
 ### 1. The product works with no AI provider at all
 
-Leave `GEMINI_API_KEY` unset. Use the expense form: physical therapy, 180.00, today.
+Leave `GEMINI_API_KEY` and the `CLOUDFLARE_*` settings unset. Use the expense form: physical therapy, 180.00, today.
 
 You get a decision with the rule references behind it, and wording written by the platform. Nothing
 in this path can call a model.
@@ -113,7 +115,7 @@ than a flat no.
 
 ### 3. With a provider configured, the wording changes and the decision does not
 
-Set `GEMINI_API_KEY` and ask: _"Can I use my health capital for 180 dollars of physical therapy?"_
+Set `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`, `GEMINI_API_KEY`, or both, and ask: _"Can I use my health capital for 180 dollars of physical therapy?"_
 
 The verdict badge and every amount still come from the decision object. The card says whether the
 assistant wrote the wording. Sign in as `support.desk@example.test`, open the audit trail, and one

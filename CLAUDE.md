@@ -27,10 +27,11 @@ All eligibility rules are synthetic POC semantics. Never claim HIPAA compliance.
   conversation or research context; the POC must stand on its own. `pnpm brand-guard` enforces this for text (tracked files
   and event commit messages) in CI; screenshots, favicon/images, rendered UI and deployment display names are checked manually per release.
 - Seed data is fictional: generic employer names, fictional member names, `example.test` emails, `EMP-/MBR-/ENR-/PLAN-` refs.
-- Gemini may extract parameters, call allowlisted tools, and explain. It never invents, upgrades, or overrides a decision.
+- The AI provider (Cloudflare Workers AI, primary; Gemini, fallback: ADR-0007) may extract parameters, call allowlisted
+  tools, and explain. It never invents, upgrades, or overrides a decision. Both receive the same minimized request.
 - Missing or conflicting authoritative data -> UNDETERMINED. Never guess.
 - Data protection (demonstrates engineering judgment; does not establish HIPAA compliance):
-  - Encryption in transit: HTTPS browser->API, TLS API->PostgreSQL (`sslmode=require`+), HTTPS API->Gemini via SDK.
+  - Encryption in transit: HTTPS browser->API, TLS API->PostgreSQL (`sslmode=require`+), HTTPS API->Gemini via SDK, HTTPS API->Cloudflare Workers AI via fetch.
   - Encryption at rest for deployed persistent storage via the managed provider. Local Docker Postgres makes no such claim.
     Per-field encryption, envelope encryption, customer KMS, tokenization are out of scope and must not be conflated with this.
   - Authorize every sensitive access: load resource, then `authorize(principal, action, resource)`. Encryption never replaces this.
@@ -41,7 +42,7 @@ All eligibility rules are synthetic POC semantics. Never claim HIPAA compliance.
   - Minimum-necessary AI context: Stage A gets only sanitized `AiUserQuery`; Stage B/tools only `AiSafe*` allowlists.
     Never name, email, DOB, address, employeeId, DB ids, memberRef, external refs, ledger or care history, or whole records.
   - Secrets never committed: `.env*` gitignored, `.env.example` placeholders only, gitleaks in CI. Server-only secrets
-    (`GEMINI_API_KEY`, `DATABASE_URL`, `JWT_SECRET`) never reach `apps/web`.
+    (`GEMINI_API_KEY`, `CLOUDFLARE_API_TOKEN`, `DATABASE_URL`, `JWT_SECRET`) never reach `apps/web`.
   - Passwords are Argon2id hashes only; never reversibly encrypted, never logged, never returned.
   - `APP_ENV=demo` fails closed on non-HTTPS origins, non-TLS `DATABASE_URL`, short/placeholder secrets, wildcard CORS.
 - Nothing from a user's free text is persisted: no question text, no question hash, no rendered-prompt hash.
@@ -58,7 +59,7 @@ All eligibility rules are synthetic POC semantics. Never claim HIPAA compliance.
 - `EmployerSystemAdapter` is enrollment-scoped (`enrollmentExternalRef`); that ref, like all external refs, never reaches Gemini.
 - AI guidance is MEMBER-only. EMPLOYER_ADMIN never sees care requests, decisions, balances, ledgers, or PHI.
 - Money is integer cents. Rule logic is versioned code (`ENGINE_VERSION`); plan parameters are data (`planConfigVersion`).
-- Everything works with `GEMINI_API_KEY` unset.
+- Everything works with no AI provider configured (`GEMINI_API_KEY` and `CLOUDFLARE_*` unset).
 - Security baseline (CORS allowlist, helmet, body limits, no-store, rate limits, config validation) ships with the endpoint.
 
 ## Domain invariants
@@ -95,7 +96,8 @@ pnpm install · docker compose up -d · pnpm db:migrate · pnpm db:deploy · pnp
 pnpm dev (api :3001, web :3000) · pnpm dev:api · pnpm dev:web ·
 pnpm test (unit and component) · pnpm test:integration · pnpm test:security · pnpm test:privacy · pnpm test:ai-pipeline
 (the four above need a migrated and seeded PostgreSQL) ·
-pnpm test:ai-live (runs against a real model; skips every case unless GEMINI_API_KEY is set; not part of any gate) ·
+pnpm test:ai-live (runs against a real model; skips every case unless GEMINI_API_KEY or CLOUDFLARE_ACCOUNT_ID+CLOUDFLARE_API_TOKEN
+are set; not part of any gate) ·
 pnpm lint · pnpm format · pnpm typecheck · pnpm build · pnpm brand-guard [--commits <range>] · pnpm docker:build
 pnpm --filter @health-capital/api test src/platform/config.test.ts (single file)
 
@@ -126,4 +128,4 @@ Docs in docs/ and docs/adr/; `docs/security-and-data-boundaries.md` carries the 
 ## Development-assistant transparency
 
 Claude Code is a development assistant (implementation, tests, docs). Decisions are reviewed and owned by the developer.
-Gemini is the runtime AI provider. Claude Code is not part of the runtime architecture.
+Cloudflare Workers AI (primary) and Gemini (fallback) are the runtime AI providers. Claude Code is not part of the runtime architecture.

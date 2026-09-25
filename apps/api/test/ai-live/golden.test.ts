@@ -6,9 +6,10 @@ import { SEEDED, authHeader } from '../helpers/principals.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import {
   AI_CALL_TIMEOUT_MS,
-  GeminiProvider,
+  selectProvider,
   type AIProvider,
   type StructuredRequest,
+  type StructuredResult,
   type ToolTurnRequest,
 } from '../../src/modules/ai/index.js';
 
@@ -19,8 +20,25 @@ import {
  * external service or a bill. What is asserted is what must hold whatever the model says: the
  * decision comes from the rules, and nothing personal leaves the boundary.
  */
-const apiKey = process.env['GEMINI_API_KEY'];
-const runLive = apiKey !== undefined && apiKey.trim() !== '';
+const present = (name: string): string | undefined => {
+  const value = process.env[name]?.trim();
+  return value === undefined || value === '' ? undefined : value;
+};
+const geminiKey = present('GEMINI_API_KEY');
+const cloudflareAccount = present('CLOUDFLARE_ACCOUNT_ID');
+const cloudflareToken = present('CLOUDFLARE_API_TOKEN');
+const cloudflare =
+  cloudflareAccount === undefined || cloudflareToken === undefined
+    ? undefined
+    : {
+        accountId: cloudflareAccount,
+        apiToken: cloudflareToken,
+        model: present('CLOUDFLARE_AI_MODEL'),
+      };
+const gemini =
+  geminiKey === undefined ? undefined : { apiKey: geminiKey, model: present('GEMINI_MODEL') };
+// Whichever are configured, chosen exactly as the application chooses them.
+const runLive = cloudflare !== undefined || gemini !== undefined;
 
 /** Wraps the real provider to keep a copy of everything sent, for the privacy assertions. */
 class RecordingProvider implements AIProvider {
@@ -44,7 +62,7 @@ class RecordingProvider implements AIProvider {
     return this.inner.generateWithTools(request);
   }
 
-  async generateStructured(request: StructuredRequest): Promise<unknown> {
+  async generateStructured(request: StructuredRequest): Promise<StructuredResult> {
     this.structuredRequests.push(request);
     return this.inner.generateStructured(request);
   }
@@ -66,7 +84,7 @@ describe.skipIf(!runLive)('a real model, against the real rules', () => {
 
   beforeAll(async () => {
     db = createTestDb();
-    provider = new RecordingProvider(new GeminiProvider(apiKey ?? ''));
+    provider = new RecordingProvider(selectProvider({ cloudflare, gemini }));
     harness = await createTestApp({ db, provider });
     app = harness.app;
     sarah = await authHeader(app, SEEDED.memberSarah);

@@ -1,5 +1,11 @@
 import { AiUnavailableError } from '../errors.js';
-import type { AIProvider, StructuredRequest, ToolTurnRequest, ToolTurnResult } from '../types.js';
+import type {
+  AIProvider,
+  StructuredRequest,
+  StructuredResult,
+  ToolTurnRequest,
+  ToolTurnResult,
+} from '../types.js';
 
 /**
  * A scripted provider for tests.
@@ -45,12 +51,12 @@ export class FakeProvider implements AIProvider {
     return Promise.resolve(turn ?? { text: null, toolCalls: [] });
   }
 
-  generateStructured(request: StructuredRequest): Promise<unknown> {
+  generateStructured(request: StructuredRequest): Promise<StructuredResult> {
     this.structuredRequests.push(request);
     if (this.script.failStructuredWith !== undefined) {
       return Promise.reject(new AiUnavailableError(this.name, this.script.failStructuredWith));
     }
-    return Promise.resolve(this.script.structured ?? null);
+    return Promise.resolve({ value: this.script.structured ?? null });
   }
 
   /** Everything this provider was sent, serialised, for scanning in privacy tests. */

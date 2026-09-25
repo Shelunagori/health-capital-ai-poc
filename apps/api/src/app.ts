@@ -19,7 +19,7 @@ import { AccessGuard } from './modules/authorization/index.js';
 import { BenefitsService } from './modules/benefits/index.js';
 import { registerEligibilityRoutes } from './modules/eligibility/index.js';
 import { registerGuidanceRoutes } from './modules/guidance/index.js';
-import { GeminiProvider, NullProvider, type AIProvider } from './modules/ai/index.js';
+import { selectProvider, type AIProvider } from './modules/ai/index.js';
 import {
   ScenarioController,
   SyntheticBenefitsAdministratorAdapter,
@@ -137,13 +137,24 @@ export async function buildApp({
   });
   registerMemberRoutes(app, new MemberRepository(db), guard);
   registerAuditRoutes(app, db);
-  // With no key configured the null provider declines every call, and everything that does not
-  // need a model keeps working.
+  // Cloudflare Workers AI first and Gemini as its fallback, whichever are configured. With neither,
+  // the null provider declines every call, and everything that does not need a model keeps working.
   const aiProvider: AIProvider =
     provider ??
-    (config.geminiApiKey === undefined
-      ? new NullProvider()
-      : new GeminiProvider(config.geminiApiKey, config.geminiModel));
+    selectProvider({
+      cloudflare:
+        config.cloudflareAccountId === undefined || config.cloudflareApiToken === undefined
+          ? undefined
+          : {
+              accountId: config.cloudflareAccountId,
+              apiToken: config.cloudflareApiToken,
+              model: config.cloudflareAiModel,
+            },
+      gemini:
+        config.geminiApiKey === undefined
+          ? undefined
+          : { apiKey: config.geminiApiKey, model: config.geminiModel },
+    });
 
   registerEligibilityRoutes(app, {
     db,

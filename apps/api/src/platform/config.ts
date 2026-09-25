@@ -54,6 +54,19 @@ const RawEnvSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   /** Overrides the provider's own default model id. Optional: unset means use that default. */
   GEMINI_MODEL: z.string().trim().min(1).optional(),
+  /**
+   * Cloudflare Workers AI, the primary provider when configured; Gemini is then the fallback. The
+   * account id and token are needed together. The id is checked for shape because it is placed in
+   * the request URL; the same pattern lives beside the provider, which checks it again.
+   */
+  CLOUDFLARE_ACCOUNT_ID: z
+    .string()
+    .trim()
+    .regex(/^[0-9a-f]{32}$/i, 'CLOUDFLARE_ACCOUNT_ID must be 32 hexadecimal characters')
+    .optional(),
+  CLOUDFLARE_API_TOKEN: z.string().trim().min(1).optional(),
+  /** Overrides the Cloudflare provider's own default model id. */
+  CLOUDFLARE_AI_MODEL: z.string().trim().min(1).optional(),
   BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).max(1_048_576).default(65_536),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().min(1_000).max(3_600_000).default(60_000),
   /** Ceiling for any single client address across all routes. */
@@ -81,6 +94,10 @@ export interface AppConfig {
   readonly geminiApiKey: string | undefined;
   /** Undefined means the AI provider applies its own default. */
   readonly geminiModel: string | undefined;
+  readonly cloudflareAccountId: string | undefined;
+  readonly cloudflareApiToken: string | undefined;
+  /** Undefined means the Cloudflare provider applies its own default. */
+  readonly cloudflareAiModel: string | undefined;
   readonly bodyLimitBytes: number;
   readonly rateLimitWindowMs: number;
   readonly rateLimitGlobalMax: number;
@@ -105,6 +122,7 @@ const SECRET_ENV_KEYS = [
   'DATABASE_URL',
   'JWT_SECRET',
   'GEMINI_API_KEY',
+  'CLOUDFLARE_API_TOKEN',
   'SEED_USER_PASSWORD',
 ] as const;
 
@@ -162,6 +180,10 @@ const demoChecks: ReadonlyArray<(c: AppConfig) => string | null> = [
   (c) =>
     looksLikePlaceholder(c.geminiApiKey) ? 'GEMINI_API_KEY must not be a placeholder value' : null,
   (c) =>
+    looksLikePlaceholder(c.cloudflareApiToken)
+      ? 'CLOUDFLARE_API_TOKEN must not be a placeholder value'
+      : null,
+  (c) =>
     c.corsAllowedOrigins.length > 0 ? null : 'CORS_ALLOWED_ORIGINS must not be empty in demo mode',
   (c) =>
     c.corsAllowedOrigins.includes('*') ? 'CORS_ALLOWED_ORIGINS must not contain a wildcard' : null,
@@ -171,9 +193,15 @@ const demoChecks: ReadonlyArray<(c: AppConfig) => string | null> = [
       : 'CORS_ALLOWED_ORIGINS must contain only https:// origins in demo mode',
 ];
 
-// Length and presence are enforced by the schema above, so nothing remains that applies to every
-// environment. Kept as an explicit empty list so adding one has an obvious home.
-const alwaysChecks: ReadonlyArray<(c: AppConfig) => string | null> = [];
+// Length and presence are enforced by the schema above. What remains are rules across fields.
+const alwaysChecks: ReadonlyArray<(c: AppConfig) => string | null> = [
+  // Half a Cloudflare configuration is a mistake, not an intent: refuse it rather than quietly
+  // running without the primary provider.
+  (c) =>
+    (c.cloudflareAccountId === undefined) === (c.cloudflareApiToken === undefined)
+      ? null
+      : 'CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN must be set together',
+];
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const secrets = secretValuesFrom(env);
@@ -196,6 +224,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     jwtSecret: raw.JWT_SECRET,
     geminiApiKey: raw.GEMINI_API_KEY,
     geminiModel: raw.GEMINI_MODEL,
+    cloudflareAccountId: raw.CLOUDFLARE_ACCOUNT_ID,
+    cloudflareApiToken: raw.CLOUDFLARE_API_TOKEN,
+    cloudflareAiModel: raw.CLOUDFLARE_AI_MODEL,
     bodyLimitBytes: raw.BODY_LIMIT_BYTES,
     rateLimitWindowMs: raw.RATE_LIMIT_WINDOW_MS,
     rateLimitGlobalMax: raw.RATE_LIMIT_GLOBAL_MAX,

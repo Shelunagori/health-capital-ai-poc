@@ -115,7 +115,7 @@ jobs:
         run: docker build -f apps/api/Dockerfile -t health-capital-api:ci .
       - name: Confirm no server secret reached the browser bundle
         run: |
-          if grep -rlE 'JWT_SECRET|GEMINI_API_KEY|DATABASE_URL|SEED_USER_PASSWORD' apps/web/.next/static 2>/dev/null; then
+          if grep -rlE 'JWT_SECRET|GEMINI_API_KEY|CLOUDFLARE_API_TOKEN|DATABASE_URL|SEED_USER_PASSWORD' apps/web/.next/static 2>/dev/null; then
             echo 'A server-only variable name appears in the browser bundle.' >&2
             exit 1
           fi

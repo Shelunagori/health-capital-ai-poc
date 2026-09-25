@@ -38,6 +38,10 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
       # Tighter than the defaults: a public demonstration is a different exposure to a local run.
       - key: RATE_LIMIT_GLOBAL_MAX
         value: 120

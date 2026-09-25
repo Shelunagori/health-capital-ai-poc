@@ -345,3 +345,66 @@ describe('the AI model is configurable and the provider stays optional', () => {
     expect(config.geminiModel).toBe('gemini-3.6-flash');
   });
 });
+
+/**
+ * Cloudflare Workers AI is the preferred provider when configured, with Gemini behind it. Like
+ * Gemini it is optional: nothing about it is needed to start.
+ */
+describe('the Cloudflare provider is optional and configured as a whole', () => {
+  const ACCOUNT = '0123456789abcdef0123456789abcdef';
+  const TOKEN = randomUUID();
+  const local = (overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv => ({
+    ...baseEnv,
+    APP_ENV: 'local',
+    ...overrides,
+  });
+
+  it('needs nothing to start', () => {
+    const config = loadConfig(local());
+    expect(config.cloudflareAccountId).toBeUndefined();
+    expect(config.cloudflareApiToken).toBeUndefined();
+    expect(config.cloudflareAiModel).toBeUndefined();
+  });
+
+  it('carries the account, the token and a configured model', () => {
+    const config = loadConfig(
+      local({
+        CLOUDFLARE_ACCOUNT_ID: ACCOUNT,
+        CLOUDFLARE_API_TOKEN: TOKEN,
+        CLOUDFLARE_AI_MODEL: ' @cf/x/y ',
+      }),
+    );
+    expect(config.cloudflareAccountId).toBe(ACCOUNT);
+    expect(config.cloudflareApiToken).toBe(TOKEN);
+    expect(config.cloudflareAiModel).toBe('@cf/x/y');
+  });
+
+  it('refuses half a configuration rather than quietly running without it', () => {
+    for (const overrides of [{ CLOUDFLARE_ACCOUNT_ID: ACCOUNT }, { CLOUDFLARE_API_TOKEN: TOKEN }]) {
+      expect(problemsOf(local(overrides))).toContain(
+        'CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN must be set together',
+      );
+    }
+  });
+
+  it('refuses an account id that is not one, since it is placed in a URL', () => {
+    const problems = problemsOf(
+      local({ CLOUDFLARE_ACCOUNT_ID: '../../other', CLOUDFLARE_API_TOKEN: TOKEN }),
+    ).join('\n');
+    expect(problems).toContain('CLOUDFLARE_ACCOUNT_ID must be 32 hexadecimal characters');
+    expect(problems).not.toContain(TOKEN);
+  });
+
+  it('refuses a placeholder token in demo mode', () => {
+    expect(
+      problemsOf(demoEnv({ CLOUDFLARE_ACCOUNT_ID: ACCOUNT, CLOUDFLARE_API_TOKEN: 'change-me' })),
+    ).toContain('CLOUDFLARE_API_TOKEN must not be a placeholder value');
+  });
+
+  it('treats the token as a secret, scrubbed from every problem message', () => {
+    const problems = problemsOf(
+      local({ CLOUDFLARE_API_TOKEN: TOKEN, CLOUDFLARE_AI_MODEL: TOKEN, JWT_SECRET: 'short' }),
+    ).join('\n');
+    expect(problems).not.toContain(TOKEN);
+  });
+});

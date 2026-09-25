@@ -11,7 +11,9 @@ export {
   type AiUserQuery,
   type AiUserQueryShape,
   type ModelToolCall,
+  type ProviderIdentity,
   type StructuredRequest,
+  type StructuredResult,
   type ToolDefinition,
   type ToolExchange,
   type ToolTurnRequest,
@@ -42,3 +44,15 @@ export {
 export { NullProvider } from './providers/null.js';
 export { FakeProvider, type FakeScript } from './providers/fake.js';
 export { GeminiProvider, DEFAULT_GEMINI_MODEL } from './providers/gemini.js';
+export {
+  CloudflareWorkersAiProvider,
+  CLOUDFLARE_ACCOUNT_ID_PATTERN,
+  DEFAULT_CLOUDFLARE_MODEL,
+  type CloudflareProviderOptions,
+} from './providers/cloudflare.js';
+export {
+  FallbackProvider,
+  DEFAULT_FALLBACK_COOLDOWN_MS,
+  type FallbackOptions,
+} from './providers/fallback.js';
+export { selectProvider, type ProviderSettings } from './providers/select.js';

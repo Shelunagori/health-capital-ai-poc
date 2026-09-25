@@ -13,7 +13,7 @@ PHI-like, PII and financial data scenarios; they do not establish regulatory com
 ```
 Browser (untrusted) ── HTTPS, bearer JWT ──> API
 API ── TLS ──> managed PostgreSQL (encrypted at rest in deployed environments)
-API ── HTTPS via provider SDK ──> AI provider (only sanitized / allowlisted context)
+API ── HTTPS (SDK or fetch) ──> AI provider (only sanitized / allowlisted context)
 API ── adapters ──> external systems (synthetic in this POC; TLS in a real deployment)
 ```
 
@@ -25,13 +25,13 @@ API ── adapters ──> external systems (synthetic in this POC; TLS in a re
 
 ## Data protection baseline
 
-| Control                     | Local development                       | Deployed demo                                                                 |
-| --------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| Browser to API transport    | HTTP on localhost permitted             | HTTPS only                                                                    |
-| API to PostgreSQL           | Non-TLS local container permitted       | TLS required (`sslmode=require` or stricter); startup fails otherwise         |
-| API to AI provider          | HTTPS via SDK                           | HTTPS via SDK                                                                 |
-| Database encryption at rest | No claim (local Docker, synthetic data) | Provider-managed encryption at rest required; encrypted backups where enabled |
-| Secrets                     | `.env` (gitignored)                     | Platform-managed secret storage                                               |
+| Control                     | Local development                        | Deployed demo                                                                 |
+| --------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| Browser to API transport    | HTTP on localhost permitted              | HTTPS only                                                                    |
+| API to PostgreSQL           | Non-TLS local container permitted        | TLS required (`sslmode=require` or stricter); startup fails otherwise         |
+| API to AI provider          | HTTPS (Gemini SDK; Cloudflare via fetch) | HTTPS (Gemini SDK; Cloudflare via fetch)                                      |
+| Database encryption at rest | No claim (local Docker, synthetic data)  | Provider-managed encryption at rest required; encrypted backups where enabled |
+| Secrets                     | `.env` (gitignored)                      | Platform-managed secret storage                                               |
 
 Encryption never replaces authorization. Every sensitive read or write remains subject to role, ownership
 and tenancy checks and to audit.
@@ -143,7 +143,9 @@ is never treated as proof that image assets contain no branding.
 
 Only branded, minimized types cross it. The provider receives no name, email, date of birth,
 address, employee identifier, database identifier, opaque reference, ledger history or care history,
-and no identifier for the member at all.
+and no identifier for the member at all. This holds for every provider: Cloudflare Workers AI
+(primary) and Gemini (fallback) receive the identical request, so falling back shares nothing more
+(ADR-0007).
 
 Raw member text passes through a sanitizer first, and only the first stage ever sees it. The
 explanation stage is given the decision and nothing else, so there is no path from what a member

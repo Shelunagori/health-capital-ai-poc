@@ -56,11 +56,18 @@ disagreement between the two mechanically visible rather than a matter of readin
 
 ## Providers
 
-| Provider | Used when                                                                           |
-| -------- | ----------------------------------------------------------------------------------- |
-| Gemini   | A key is configured. Key stays server-side; requests and responses are never logged |
-| Fake     | Tests. Records what it was sent, and can be told to fail or misbehave on purpose    |
-| Null     | No key configured. Declines every call                                              |
+| Provider              | Used when                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| Cloudflare Workers AI | An account id and token are configured. Preferred. Token stays server-side; nothing is logged      |
+| Gemini                | A key is configured. The fallback when Cloudflare is also configured, otherwise used on its own    |
+| Fallback              | Both are configured. Tries Cloudflare, then Gemini; names the one that answered in the audit trail |
+| Fake                  | Tests. Records what it was sent, and can be told to fail or misbehave on purpose                   |
+| Null                  | Nothing configured. Declines every call                                                            |
+
+Both real providers receive exactly the same minimized, branded request, so falling back never sends
+the second model more than the first would have seen. Only an outage falls back; any other error is
+a defect and is rethrown. A provider that fails is skipped for 30 seconds, so an outage costs one
+timeout rather than one per tool round. See ADR-0007.
 
 Every provider failure becomes one error type carrying only the provider name and the kind of
 failure, so an upstream message cannot smuggle a payload into a log. Every call is bounded by a

@@ -118,9 +118,20 @@ export interface ToolTurnRequest {
   exchanges: ToolExchange[];
 }
 
+/** Which provider and model produced a result. Names only: never a key, an endpoint or an account. */
+export interface ProviderIdentity {
+  provider: string;
+  model: string;
+}
+
 export interface ToolTurnResult {
   text: string | null;
   toolCalls: ModelToolCall[];
+  /**
+   * Set by a provider that delegates, so the audit trail names the model that actually answered
+   * rather than the composite. Absent means the provider that was called answered itself.
+   */
+  servedBy?: ProviderIdentity;
 }
 
 export interface StructuredRequest {
@@ -130,6 +141,13 @@ export interface StructuredRequest {
   /** Deliberately not the user's words: the explanation stage never sees them. */
   context: AiSafeExplanationContext;
   responseSchema: Record<string, unknown>;
+}
+
+export interface StructuredResult {
+  /** Untrusted: whatever the model produced, parsed from JSON. Checked by the verdict guard. */
+  value: unknown;
+  /** As on `ToolTurnResult`: the provider that actually answered, when it was not the one called. */
+  servedBy?: ProviderIdentity;
 }
 
 /**
@@ -142,5 +160,5 @@ export interface AIProvider {
   /** Whether this provider can actually be called. False for the null provider. */
   readonly available: boolean;
   generateWithTools(request: ToolTurnRequest): Promise<ToolTurnResult>;
-  generateStructured(request: StructuredRequest): Promise<unknown>;
+  generateStructured(request: StructuredRequest): Promise<StructuredResult>;
 }

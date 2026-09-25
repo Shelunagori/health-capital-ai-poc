@@ -14,6 +14,7 @@ import {
   toAiSafeExplanationContext,
   type AIProvider,
   type KnownProfileValues,
+  type ProviderIdentity,
   type ToolExchange,
 } from '../ai/index.js';
 import { templateExplanation, type EligibilityResult } from '../eligibility/index.js';
@@ -99,7 +100,7 @@ export class GuidanceService {
           tools: TOOL_DEFINITIONS,
           exchanges,
         });
-        await this.recordCall('A', startedAt, query.redactions, request);
+        await this.recordCall('A', startedAt, query.redactions, request, turn.servedBy);
       } catch (err) {
         if (!(err instanceof AiUnavailableError)) throw err;
         stageAFailed = true;
@@ -159,17 +160,20 @@ export class GuidanceService {
     });
 
     let candidate: unknown;
+    let stageBServedBy: ProviderIdentity | undefined;
     try {
       const startedAt = Date.now();
-      candidate = await this.deps.provider.generateStructured({
+      const structured = await this.deps.provider.generateStructured({
         systemInstruction: STAGE_B_PROMPT.systemInstruction,
         promptTemplateId: STAGE_B_PROMPT.id,
         promptVersion: STAGE_B_PROMPT.version,
         context,
         responseSchema: EXPLANATION_RESPONSE_SCHEMA,
       });
+      candidate = structured.value;
+      stageBServedBy = structured.servedBy;
       // No redaction count here: this stage receives no member text to redact.
-      await this.recordCall('B', startedAt, [], request);
+      await this.recordCall('B', startedAt, [], request, structured.servedBy);
     } catch (err) {
       if (!(err instanceof AiUnavailableError)) throw err;
       return fallback('unavailable');
@@ -177,7 +181,7 @@ export class GuidanceService {
 
     const verdict = checkExplanation(candidate, capture.result.outcome, context);
     if (!verdict.ok) {
-      await this.recordGuard(verdict.failure, request);
+      await this.recordGuard(verdict.failure, request, stageBServedBy);
       // The decision stands. Only the wording is replaced.
       return fallback('degraded');
     }
@@ -196,15 +200,17 @@ export class GuidanceService {
     startedAt: number,
     redactions: { kind: string; count: number }[],
     request: GuidanceRequest,
+    servedBy: ProviderIdentity | undefined,
   ): Promise<void> {
+    const served = this.attribution(servedBy);
     await this.deps.audit.record({
       action: AuditAction.AI_CALL,
       outcome: AuditOutcome.SUCCESS,
       traceId: request.traceId,
       actorUserId: request.principal.userId,
       actorRole: request.principal.role,
-      aiProvider: this.deps.provider.name,
-      aiModel: this.deps.provider.model,
+      aiProvider: served.provider,
+      aiModel: served.model,
       // The template that produced the call, never the rendered prompt and never a hash of one:
       // a first-stage prompt contains the member's own words.
       promptTemplateId: stage === 'A' ? STAGE_A_PROMPT.id : STAGE_B_PROMPT.id,
@@ -213,16 +219,26 @@ export class GuidanceService {
     });
   }
 
-  private async recordGuard(failure: GuardFailure, request: GuidanceRequest): Promise<void> {
+  private async recordGuard(
+    failure: GuardFailure,
+    request: GuidanceRequest,
+    servedBy: ProviderIdentity | undefined,
+  ): Promise<void> {
+    const served = this.attribution(servedBy);
     await this.deps.audit.record({
       action: AuditAction.AI_GUARD_TRIGGERED,
       outcome: AuditOutcome.DENY,
       traceId: request.traceId,
       actorUserId: request.principal.userId,
       actorRole: request.principal.role,
-      aiProvider: this.deps.provider.name,
-      aiModel: this.deps.provider.model,
+      aiProvider: served.provider,
+      aiModel: served.model,
       metadata: { guard: failure },
     });
+  }
+
+  /** The provider that answered: a fallback chain reports which one, a single provider is itself. */
+  private attribution(servedBy: ProviderIdentity | undefined): ProviderIdentity {
+    return servedBy ?? { provider: this.deps.provider.name, model: this.deps.provider.model };
   }
 }
