@@ -92,6 +92,15 @@ body {
 .auth__head .subtitle {
   margin-top: 0.35rem;
 }
+.auth__review {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+}
+.auth__review a {
+  color: var(--accent);
+  font-weight: 600;
+  text-underline-offset: 2px;
+}
 
 .banner {
   background: #12283d;
@@ -917,4 +926,403 @@ a:focus-visible {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ---------- engineering review (/review) ---------- */
+
+/* A long read rather than a workspace: a narrower measure, and sections that breathe. */
+.review {
+  max-width: 60rem;
+  margin: 0 auto;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.review a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+.review a.button {
+  color: #fff;
+  text-decoration: none;
+}
+.review a.button--quiet {
+  color: var(--accent);
+}
+.review p {
+  margin: 0;
+}
+.review code {
+  font-size: 0.875em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.review h2 {
+  font-size: 1.3rem;
+  color: var(--ink);
+  margin-bottom: 0.6rem;
+}
+.review h3 {
+  color: var(--ink);
+}
+
+.review-hero {
+  padding: clamp(1rem, 4vw, 2.5rem) 0 1.5rem;
+}
+.review-hero > * + * {
+  margin-top: 0.85rem;
+}
+.review-hero h1 {
+  font-size: clamp(1.75rem, 4vw, 2.4rem);
+  color: var(--ink);
+}
+.review-lead {
+  font-size: clamp(1.05rem, 2vw, 1.2rem);
+  color: var(--ink);
+  max-width: 44rem;
+}
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.review-actions .button {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Section links that stay in reach while reading; they wrap rather than scroll sideways. */
+.review-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--ground);
+  border-bottom: 1px solid var(--line);
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+.review-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  font-size: 0.875rem;
+}
+.review-nav a {
+  text-decoration: none;
+  font-weight: 600;
+}
+.review-nav a:hover {
+  text-decoration: underline;
+}
+
+.review-section {
+  padding: 1.75rem 0;
+  border-bottom: 1px solid var(--line);
+  /* Keeps an anchored heading clear of the sticky section links. */
+  scroll-margin-top: 4.5rem;
+}
+.review-section > * + * {
+  margin-top: 0.9rem;
+}
+.review-subhead {
+  margin-top: 1.4rem !important;
+}
+
+.review-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+.review-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.review-marker--rules {
+  color: var(--eligible);
+}
+.review-marker--model {
+  color: var(--partial);
+}
+.review-marker--person {
+  color: var(--accent);
+}
+
+.review-facts,
+.review-checks,
+.review-pending,
+.review-card ul,
+.review-stage ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+.review-facts li + li,
+.review-checks li + li,
+.review-pending li + li,
+.review-card li + li,
+.review-stage li + li {
+  margin-top: 0.4rem;
+}
+.review-checks {
+  list-style: none;
+  padding-left: 0;
+}
+.review-checks li,
+.review-pending li {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.review-pending {
+  list-style: none;
+  padding-left: 0;
+}
+.review-checks li::before,
+.review-pending li::before {
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+.review-checks li::before {
+  content: '✓';
+  color: var(--eligible);
+}
+.review-pending li::before {
+  content: '○';
+  color: var(--undetermined);
+}
+
+.review-steps {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: 0.6rem;
+}
+.review-steps li strong {
+  display: block;
+  color: var(--ink);
+}
+
+/* A diagram out of boxes rather than an image, so it reflows on a phone and reads to a screen reader. */
+.review-diagram {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  padding: 1.25rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.review-node {
+  display: grid;
+  gap: 0.15rem;
+  text-align: center;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+  width: 100%;
+  max-width: 34rem;
+}
+.review-node--core {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.review-node__name {
+  font-weight: 700;
+  color: var(--ink);
+}
+.review-node__detail {
+  font-size: 0.8125rem;
+  color: var(--ink-quiet);
+}
+.review-link {
+  font-size: 0.75rem;
+  color: var(--ink-quiet);
+  text-align: center;
+  padding: 0.15rem 0;
+}
+.review-link::before {
+  content: '↓ ';
+  color: var(--accent);
+}
+.review-fanout {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+@media (min-width: 48rem) {
+  .review-fanout {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.review-stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+.review-stage {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+.review-stage > * + * {
+  margin-top: 0.55rem;
+}
+.review-stage__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+.review-stage__id {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.review-stage__head .review-marker {
+  margin-left: auto;
+}
+.review-stage__sees {
+  font-size: 0.9375rem;
+}
+
+.review-table {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+.review-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.review-table th,
+.review-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+.review-table tr:last-child td {
+  border-bottom: 0;
+}
+.review-table th {
+  color: var(--ink);
+  background: var(--sunken);
+  font-size: 0.8125rem;
+}
+.review-table td:first-child {
+  white-space: nowrap;
+}
+
+.review-columns,
+.review-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+@media (min-width: 44rem) {
+  .review-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+  .review-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (min-width: 60rem) {
+  .review-grid--five {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+.review-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+}
+.review-card > * + * {
+  margin-top: 0.5rem;
+}
+.review-card p {
+  font-size: 0.9375rem;
+}
+
+.review-callout {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ink);
+}
+
+.review-stats {
+  display: grid;
+  gap: 0.7rem;
+  /* Six suites: two rows of three, or three rows of two, never five and an orphan. */
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 44rem) {
+  .review-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.review-stat {
+  display: grid;
+  gap: 0.1rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+}
+.review-stat__count {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.review-stat__suite {
+  font-weight: 600;
+  color: var(--ink);
+}
+.review-stat__covers {
+  font-size: 0.8125rem;
+  color: var(--ink-quiet);
+}
+
+.review-decisions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.review-end {
+  padding: 2rem 0 1rem;
+  text-align: center;
+}
+.review-end > * + * {
+  margin-top: 0.75rem;
+}
+.review-end .review-actions {
+  justify-content: center;
 }

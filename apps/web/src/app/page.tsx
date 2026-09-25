@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { LoginForm } from '@/components/login-form';
 import { MemberView } from '@/components/member-view';
@@ -21,6 +22,9 @@ export default function HomePage(): JSX.Element {
         <header className="auth__head">
           <h1>Health Capital</h1>
           <p className="subtitle">Check whether your health capital covers a healthcare expense.</p>
+          <p className="auth__review">
+            <Link href="/review">How this is built: the engineering review</Link>
+          </p>
         </header>
         <LoginForm />
       </div>
