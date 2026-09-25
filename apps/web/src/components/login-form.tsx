@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ApiError, api } from '@/lib/api-client';
+import { DEMO_ACCOUNTS, DEMO_PASSWORD, type DemoAccount } from '@/lib/demo-accounts';
 import { useSession } from '@/lib/session';
 
 /**
@@ -15,6 +16,10 @@ import { useSession } from '@/lib/session';
  * happened: a form with no method defaults to GET, and a browser submitting this one would put the
  * password in the query string, the address bar and the history. Declaring POST means the worst
  * case is a discarded request body rather than a credential written into the URL.
+ *
+ * Below the form the fictional demonstration accounts are listed, one button per role. When the
+ * shared password is published (`NEXT_PUBLIC_DEMO_PASSWORD`) a button signs straight in as that
+ * role; when it is not, it fills in the address and leaves the password to the visitor.
  */
 export function LoginForm(): JSX.Element {
   const { signIn } = useSession();
@@ -22,13 +27,13 @@ export function LoginForm(): JSX.Element {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const passwordInput = useRef<HTMLInputElement>(null);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  async function signInWith(address: string, secret: string): Promise<void> {
     setBusy(true);
     setError(null);
     try {
-      const result = await api.login(email, password);
+      const result = await api.login(address, secret);
       signIn(result.accessToken, result.role, result.expiresInSeconds);
     } catch (err) {
       setError(
@@ -39,6 +44,22 @@ export function LoginForm(): JSX.Element {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    await signInWith(email, password);
+  }
+
+  function chooseDemoAccount(account: DemoAccount): void {
+    setEmail(account.email);
+    if (DEMO_PASSWORD === undefined) {
+      setPassword('');
+      passwordInput.current?.focus();
+      return;
+    }
+    setPassword(DEMO_PASSWORD);
+    void signInWith(account.email, DEMO_PASSWORD);
   }
 
   return (
@@ -52,7 +73,7 @@ export function LoginForm(): JSX.Element {
     >
       <div>
         <h2 id="signin-heading">Sign in</h2>
-        <p className="hint">Use the demonstration account you were given.</p>
+        <p className="hint">Use a demonstration account below, or one you were given.</p>
       </div>
 
       <noscript>
@@ -81,6 +102,7 @@ export function LoginForm(): JSX.Element {
           name="password"
           autoComplete="current-password"
           required
+          ref={passwordInput}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
@@ -96,10 +118,40 @@ export function LoginForm(): JSX.Element {
         {busy ? 'Signing in…' : 'Sign in'}
       </button>
 
-      <p className="hint">
-        Every account in this demonstration is fictional. Ask whoever set it up for the shared
-        password.
-      </p>
+      <section className="demo" aria-labelledby="demo-heading">
+        <h3 id="demo-heading" className="demo__heading">
+          Demonstration accounts
+        </h3>
+        <p className="hint">
+          Every account is fictional and holds synthetic data only.{' '}
+          {DEMO_PASSWORD === undefined ? (
+            'Choose one to fill in the address; ask whoever set this up for the shared password.'
+          ) : (
+            <>
+              Choose one to sign in, or use its address with the password{' '}
+              <code className="demo__secret">{DEMO_PASSWORD}</code>.
+            </>
+          )}
+        </p>
+        <ul className="demo__list">
+          {DEMO_ACCOUNTS.map((account) => (
+            <li key={account.email}>
+              <button
+                type="button"
+                className="demo__account"
+                disabled={busy}
+                onClick={() => chooseDemoAccount(account)}
+              >
+                <span className="demo__role">
+                  {DEMO_PASSWORD === undefined ? account.role : `Sign in as ${account.role}`}
+                </span>
+                <span className="demo__email">{account.email}</span>
+                <span className="demo__shows">{account.shows}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
     </form>
   );
 }

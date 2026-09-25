@@ -63,9 +63,20 @@ the output of the seed.
 | Employer administrator | `admin.northstar@example.test`, `admin.harbor@example.test`                           |
 | Support                | `support.desk@example.test`                                                           |
 
-All fictional, all `example.test`. The password itself is not in this repository and is not on the
-sign-in page of the deployed client; share it out of band. Rotate it by rerunning the seed with a new
-`SEED_USER_PASSWORD`.
+All fictional, all `example.test`. The password itself is never in this repository.
+
+The sign-in page lists the member, one employer administrator and support as one-click
+demonstration accounts. Whether it also publishes the password is a hosting decision:
+
+- **Public demonstration:** set `NEXT_PUBLIC_DEMO_PASSWORD` on the client to the same value as
+  `SEED_USER_PASSWORD`, then redeploy the client (a `NEXT_PUBLIC_` value is compiled in at build
+  time). The page shows the password and each account button signs straight in. Anyone with the URL
+  can then sign in as any of these roles; treat the value as public from that point.
+- **Private demonstration:** leave it unset. The buttons fill in the address only, and the password
+  is shared out of band.
+
+Rotate it by rerunning the seed with a new `SEED_USER_PASSWORD` and, when published, updating
+`NEXT_PUBLIC_DEMO_PASSWORD` to match and redeploying the client.
 
 ## Verification checklist
 

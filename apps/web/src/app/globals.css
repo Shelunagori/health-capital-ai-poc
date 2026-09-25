@@ -459,6 +459,72 @@ a:focus-visible {
   margin: 0;
 }
 
+/* The fictional demonstration accounts under the sign-in form, one button per role. */
+.demo {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+.demo > * + * {
+  margin-top: 0.6rem;
+}
+.demo__heading {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+.demo__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.demo__account {
+  font: inherit;
+  width: 100%;
+  display: grid;
+  gap: 0.1rem;
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+.demo__account:hover:not([disabled]) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.demo__account[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.demo__role {
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+.demo__email {
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.demo__shows {
+  font-size: 0.8125rem;
+  color: var(--ink-quiet);
+}
+.demo__secret {
+  font-size: 0.8125rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 /* Two related controls side by side once there is room for them. */
 .field-pair {
   display: grid;
