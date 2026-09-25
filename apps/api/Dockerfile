@@ -30,6 +30,9 @@ RUN pnpm --filter @health-capital/contracts build \
 FROM base AS runtime
 ENV NODE_ENV=production
 # Migrations run as a release step, so the running container needs the Prisma CLI and the schema.
+# Call the CLI directly, from apps/api: `./node_modules/.bin/prisma migrate deploy`. Not through
+# pnpm: the image carries no lockfile, so pnpm treats the dependencies as stale, downloads itself
+# and reinstalls everything before running, which is slow, needs the network, and can be cut off.
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages/contracts/dist packages/contracts/dist
 COPY --from=build /app/packages/contracts/package.json packages/contracts/

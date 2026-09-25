@@ -42,7 +42,11 @@ checks, and to the audit trail, however well encrypted the storage is.
    without it the assistant declines and everything else works.
 3. **Load the data.** Apply migrations and load the synthetic dataset, either as a pre-deploy step
    on the platform or through the demo database workflow with reseed enabled. Either refuses to run
-   against a connection string that does not require TLS.
+   against a connection string that does not require TLS. As a pre-deploy step, call the CLI that
+   is already in the image:
+   `/bin/sh -c "cd /app/apps/api && exec ./node_modules/.bin/prisma migrate deploy"`. Not
+   `pnpm exec`: the image has no lockfile, so pnpm downloads itself and reinstalls every dependency
+   first, which is slow, needs the network, and can be cut off mid-install.
 4. **Check it came up.** `GET /ready` returns ready with a migration count.
 
 The API refuses to start if any of this is wrong: not HTTPS, not TLS to the database, a signing

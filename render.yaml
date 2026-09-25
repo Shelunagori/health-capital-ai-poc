@@ -16,7 +16,8 @@ services:
     plan: starter
     healthCheckPath: /ready
     # Applied before the new container takes traffic, so it never serves against an old schema.
-    preDeployCommand: pnpm --filter @health-capital/api exec prisma migrate deploy
+    # The Prisma CLI already in the image: no pnpm, so no package manager download and no reinstall.
+    preDeployCommand: cd /app/apps/api && ./node_modules/.bin/prisma migrate deploy
     envVars:
       - key: APP_ENV
         # Startup fails here unless origins are HTTPS, the database requires TLS, the signing secret
